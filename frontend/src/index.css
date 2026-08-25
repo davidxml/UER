@@ -1,20 +1,19 @@
-:root {
-  --blue-deep: #071233;
-  --blue: #0d2464;
-  --wine-dark: #3f0d26;
-  --wine: #5e1330;
-  --text-h: #ffffff;
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+@import 'tailwindcss';
 
+@theme {
+  --color-blue-deep: #071233;
+  --color-blue: #0d2464;
+  --color-wine-dark: #3f0d26;
+  --color-wine: #5e1330;
+  --color-text-h: #ffffff;
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root {
   color-scheme: dark;
-  font-family: var(--sans);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 html,
@@ -24,11 +23,7 @@ body,
 }
 
 body {
-  margin: 0;
-  color: var(--text-h);
-  background: var(--blue-deep);
-}
-
-#root {
-  width: 100%;
+  font-family: var(--font-sans);
+  color: var(--color-text-h);
+  background: var(--color-blue-deep);
 }
