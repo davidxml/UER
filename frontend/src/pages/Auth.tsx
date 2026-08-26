@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import UerLogo from '../assets/uer-logo.svg'
 
 const PIN_LENGTH = 4
@@ -9,10 +10,19 @@ export default function Auth() {
   const [matricNumber, setMatricNumber] = useState('')
   const [pin, setPin] = useState('')
   const navigate = useNavigate()
+  const { login } = useAuth()
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    navigate('/home')
+
+    // Prototype login: the PIN gates the submit but is never persisted.
+    // Mirrors the native required/minLength rules on the inputs.
+    if (!matricNumber.trim() || pin.length !== PIN_LENGTH) return
+
+    login(matricNumber)
+    // Replace, so Back cannot land on a login form that would only bounce
+    // straight back to /home.
+    navigate('/home', { replace: true })
   }
 
   return (
