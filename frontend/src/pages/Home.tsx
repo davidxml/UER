@@ -6,8 +6,12 @@ const DEPARTMENTS = ['Alpha Base', 'Medical Center', 'Fire Station'] as const
 type Department = (typeof DEPARTMENTS)[number]
 
 export default function Home() {
+  // Frontend report state: description + departments[] + veryUrgent.
+  // These three are what the incident payload will be built from later.
   const [message, setMessage] = useState('')
   const [departments, setDepartments] = useState<Department[]>([])
+  const [veryUrgent, setVeryUrgent] = useState(false)
+
   const [isTagOpen, setIsTagOpen] = useState(false)
   const [hasPhoto, setHasPhoto] = useState(false)
 
@@ -48,6 +52,7 @@ export default function Home() {
     if (!message.trim()) return
     setMessage('')
     setDepartments([])
+    setVeryUrgent(false)
     setHasPhoto(false)
   }
 
@@ -82,13 +87,32 @@ export default function Home() {
           <MenuIcon className="h-6 w-6" />
         </button>
 
-        <button
-          type="button"
-          aria-label="Urgency alert"
-          className="flex h-11 w-11 items-center justify-center rounded-full active:bg-wine/10"
-        >
-          <SirenIcon className="h-6 w-6" />
-        </button>
+        {/* Very Urgent — the badge spells the state out; the filled button
+            alone would only read as "on" without saying what is on. */}
+        <div className="flex items-center gap-2">
+          {veryUrgent && (
+            <span
+              aria-hidden="true"
+              className="rounded-full bg-wine px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-cream"
+            >
+              Very Urgent
+            </span>
+          )}
+
+          <button
+            type="button"
+            aria-label="Mark report as very urgent"
+            aria-pressed={veryUrgent}
+            onClick={() => setVeryUrgent((urgent) => !urgent)}
+            className={`flex h-11 w-11 items-center justify-center rounded-full border-2 ${
+              veryUrgent
+                ? 'border-wine bg-wine text-cream'
+                : 'border-transparent text-wine active:bg-wine/10'
+            }`}
+          >
+            <SirenIcon className="h-6 w-6" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1" />
