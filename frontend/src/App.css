@@ -9,35 +9,44 @@
   opacity: 0;
 }
 
-.home {
-  min-height: 100svh;
-  display: grid;
-  place-items: center;
-  background:
-    radial-gradient(120% 90% at 50% 0%, rgba(35, 92, 210, 0.3) 0%, rgba(13, 36, 100, 0) 60%),
-    linear-gradient(180deg, #071233 0%, #0d2464 55%, #4b1650 85%, #5e1330 100%);
+/*
+  Centre logo colour cycle.
+
+  uer-logo.svg hardcodes stroke="#911634" on its <g>, and it is consumed as a
+  URL, so CSS cannot reach the stroke directly. Using the untouched SVG as an
+  alpha mask and animating background-color is the smallest approach that keeps
+  uer-logo.svg as the single source of truth while giving exact colour control.
+*/
+.uer-logo-mark {
+  -webkit-mask-image: url('./assets/uer-logo.svg');
+  mask-image: url('./assets/uer-logo.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  background-color: #911634;
+  animation: uer-logo-cycle 4.5s ease-in-out infinite;
 }
 
-.home-card {
-  text-align: center;
-  padding: 48px 56px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(8px);
+@keyframes uer-logo-cycle {
+  0% {
+    background-color: #911634; /* Wine */
+  }
+  33.333% {
+    background-color: #1d4ed8; /* Blue */
+  }
+  66.666% {
+    background-color: #dc2626; /* Red */
+  }
+  100% {
+    background-color: #911634; /* Wine */
+  }
 }
 
-.home-card h1 {
-  margin: 0 0 10px;
-  font-size: clamp(28px, 5vw, 40px);
-  letter-spacing: 0.18em;
-  color: #ffffff;
-}
-
-.home-card p {
-  margin: 0;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  font-size: 13px;
-  color: rgba(214, 228, 255, 0.7);
+@media (prefers-reduced-motion: reduce) {
+  .uer-logo-mark {
+    animation: none;
+  }
 }
