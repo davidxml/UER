@@ -1,16 +1,16 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-blue-deep: #071233;
-  --color-blue: #0d2464;
-  --color-wine-dark: #3f0d26;
-  --color-wine: #5e1330;
-  --color-text-h: #ffffff;
+  --color-wine: #911634;
+  --color-wine-dark: #6d1027;
+  --color-cream: #fdfbf7;
+  --color-ink: #1d1417;
+  --color-muted: #7a6b6f;
   --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -24,6 +24,9 @@ body,
 
 body {
   font-family: var(--font-sans);
-  color: var(--color-text-h);
-  background: var(--color-blue-deep);
+  color: var(--color-ink);
+  background: var(--color-cream);
+  /* App-like touch behaviour rather than web-page behaviour */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
