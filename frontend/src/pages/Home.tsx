@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  CameraIcon,
-  MenuIcon,
-  ReportedIcon,
-  SendIcon,
-  SirenIcon,
-} from '../components/icons'
+import { CameraIcon, MenuIcon, SendIcon, SirenIcon } from '../components/icons'
 
 const DEPARTMENTS = ['Alpha Base', 'Medical Center', 'Fire Station'] as const
 type Department = (typeof DEPARTMENTS)[number]
@@ -169,17 +162,6 @@ export default function Home() {
             <SendIcon className="h-5 w-5" />
           </button>
         </form>
-
-        {/* LOWER LEFT — single control to the reported incidents screen */}
-        <div className="flex">
-          <Link
-            to="/reported"
-            aria-label="Reported incidents"
-            className="flex h-11 w-11 items-center justify-center rounded-full active:bg-wine/10"
-          >
-            <ReportedIcon className="h-6 w-6" />
-          </Link>
-        </div>
       </div>
     </main>
   )
