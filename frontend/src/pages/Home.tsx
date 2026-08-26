@@ -7,7 +7,7 @@ type Department = (typeof DEPARTMENTS)[number]
 
 export default function Home() {
   const [message, setMessage] = useState('')
-  const [department, setDepartment] = useState<Department | null>(null)
+  const [departments, setDepartments] = useState<Department[]>([])
   const [isTagOpen, setIsTagOpen] = useState(false)
   const [hasPhoto, setHasPhoto] = useState(false)
 
@@ -32,14 +32,33 @@ export default function Home() {
     }
   }, [isTagOpen])
 
+  // Multi-select: a report may concern any combination of departments, so
+  // tapping a selected one removes it rather than replacing the selection.
+  function toggleDepartment(name: Department) {
+    setDepartments((current) =>
+      current.includes(name)
+        ? current.filter((selected) => selected !== name)
+        : [...current, name],
+    )
+  }
+
   // Prototype only: no API call, no upload, no location capture.
   function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!message.trim()) return
     setMessage('')
-    setDepartment(null)
+    setDepartments([])
     setHasPhoto(false)
   }
+
+  // Keep the pill readable on narrow screens: name it when one department is
+  // tagged, count them once there is more than one.
+  const tagSummary =
+    departments.length === 0
+      ? null
+      : departments.length === 1
+        ? departments[0]
+        : `${departments.length} departments`
 
   return (
     <main className="relative flex min-h-svh w-full flex-col bg-cream text-wine">
@@ -81,43 +100,47 @@ export default function Home() {
           {isTagOpen && (
             <div
               role="listbox"
-              aria-label="Tag a department"
+              aria-label="Tag departments"
+              aria-multiselectable="true"
               className="absolute bottom-full right-0 mb-2 w-44 rounded-2xl border-2 border-wine bg-cream p-1"
             >
-              {DEPARTMENTS.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  role="option"
-                  aria-selected={department === name}
-                  onClick={() => {
-                    setDepartment(name)
-                    setIsTagOpen(false)
-                  }}
-                  className={`block w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium ${
-                    department === name
-                      ? 'bg-wine text-cream'
-                      : 'text-wine active:bg-wine/10'
-                  }`}
-                >
-                  {name}
-                </button>
-              ))}
+              {DEPARTMENTS.map((name) => {
+                const isSelected = departments.includes(name)
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    // Stays open on purpose: closing here would force one
+                    // reopen per department in a multi-select list.
+                    onClick={() => toggleDepartment(name)}
+                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium ${
+                      isSelected
+                        ? 'bg-wine text-cream'
+                        : 'text-wine active:bg-wine/10'
+                    }`}
+                  >
+                    <span>{name}</span>
+                    {isSelected && <span aria-hidden="true">✓</span>}
+                  </button>
+                )
+              })}
             </div>
           )}
 
           <button
             type="button"
-            aria-label="Tag a department"
+            aria-label="Tag departments"
             aria-haspopup="listbox"
             aria-expanded={isTagOpen}
             onClick={() => setIsTagOpen((open) => !open)}
             className={`flex h-9 items-center gap-1.5 rounded-full border-2 border-wine px-3 text-sm font-semibold ${
-              department ? 'bg-wine text-cream' : 'text-wine'
+              tagSummary ? 'bg-wine text-cream' : 'text-wine'
             }`}
           >
             <span aria-hidden="true">@</span>
-            {department && <span>{department}</span>}
+            {tagSummary && <span>{tagSummary}</span>}
           </button>
         </div>
 
