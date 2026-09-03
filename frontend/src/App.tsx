@@ -1,13 +1,15 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { IncidentProvider } from './context/IncidentContext'
 import Splash from './pages/Splash'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
-import Reported from './pages/Reported'
+import Submissions from './pages/Submissions'
+import Tracking from './pages/Tracking'
 import './App.css'
 
-/** Gates /home and /reported behind an authenticated prototype session. */
+/** Gates the reporter screens behind an authenticated session (incl. guest). */
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isHydrated, isAuthenticated } = useAuth()
 
@@ -31,36 +33,46 @@ function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Splash />} />
-          <Route
-            path="/auth"
-            element={
-              <RedirectIfAuthenticated>
-                <Auth />
-              </RedirectIfAuthenticated>
-            }
-          />
-          <Route
-            path="/home"
-            element={
-              <RequireAuth>
-                <Home />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/reported"
-            element={
-              <RequireAuth>
-                <Reported />
-              </RequireAuth>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <IncidentProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Splash />} />
+            <Route
+              path="/auth"
+              element={
+                <RedirectIfAuthenticated>
+                  <Auth />
+                </RedirectIfAuthenticated>
+              }
+            />
+            <Route
+              path="/home"
+              element={
+                <RequireAuth>
+                  <Home />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/submissions"
+              element={
+                <RequireAuth>
+                  <Submissions />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tracking"
+              element={
+                <RequireAuth>
+                  <Tracking />
+                </RequireAuth>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </IncidentProvider>
     </AuthProvider>
   )
 }
