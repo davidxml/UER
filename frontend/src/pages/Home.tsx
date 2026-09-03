@@ -8,6 +8,7 @@ import {
   SirenIcon,
 } from '../components/icons'
 import { useIncidents } from '../context/IncidentContext'
+import { incidentTitle } from '../lib/incidentTitle'
 
 const DEPARTMENTS = ['Alpha Base', 'Medical Center', 'Fire Station'] as const
 type Department = (typeof DEPARTMENTS)[number]
@@ -15,11 +16,16 @@ type Department = (typeof DEPARTMENTS)[number]
 const MAX_ATTACHMENTS = 4
 const MAX_INPUT_HEIGHT = 120
 
+// Hardcoded UNILAG Senate Building coordinates for the MVP map test.
+const SENATE_COORDS = { lat: 6.517086, lng: 3.398327 }
+
 export default function Home() {
   const [message, setMessage] = useState('')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [selectedDepts, setSelectedDepts] = useState<Department[]>([])
   const [attachments, setAttachments] = useState<string[]>([])
+  const [showLocationModal, setShowLocationModal] = useState(false)
+  const [locationText, setLocationText] = useState('')
   const navigate = useNavigate()
   const { submitIncident } = useIncidents()
 
@@ -77,37 +83,70 @@ export default function Home() {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleSendReport = () => {
-    if (!message.trim()) return
+  // Mock POST to the Spring Boot backend. Once the controller exists this
+  // becomes a real call to POST /api/v1/incidents.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const submitIncidentToBackend = async (payload: any) => {
+    // TODO: Replace with actual Spring Boot endpoint: POST /api/v1/incidents
+    console.log('Mocking API POST to /api/v1/incidents', payload)
+    return new Promise((resolve) => setTimeout(resolve, 500))
+  }
 
-    const tagged =
-      selectedDepts.length > 0 ? selectedDepts.join(', ') : 'General Dispatch'
+  // First step: the Send action only opens the location confirmation modal.
+  // The report is not committed until the user confirms the location.
+  const handleSendClick = () => {
+    if (!message.trim()) return
+    setShowLocationModal(true)
+  }
+
+  // Second step: after a location is confirmed, push the payload to the mock
+  // backend, record the report locally, and advance to live tracking.
+  const confirmSendReport = async () => {
+    if (!locationText.trim()) return
+
+    const tagged = selectedDepts.join(', ') || 'General Dispatch'
+    const payload = {
+      incidentId: `INC-2026-${Math.floor(Math.random() * 900 + 100)}`,
+      type: incidentTitle(tagged),
+      locationText,
+      // Hardcoding Senate Building coordinates for MVP map testing.
+      coordinates: SENATE_COORDS,
+      taggedDepartments: selectedDepts,
+      description: message.trim(),
+      timestamp: new Date().toISOString(),
+    }
+
+    await submitIncidentToBackend(payload)
 
     submitIncident({
-      text: message.trim(),
+      text: payload.description,
       tagged,
+      locationText: payload.locationText,
       images: attachments,
     })
+
+    // Reset every piece of composer state for the next report.
     setMessage('')
+    setLocationText('')
     setSelectedDepts([])
     setAttachments([])
     setIsMenuOpen(false)
-    // Reset the file input so the same file can be picked again next time.
+    setShowLocationModal(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
-    // Auto-advance to the live tracking view of the new report.
+    // Replace so Back cannot return to an empty composer.
     navigate('/tracking', { replace: true })
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Shift + Enter inserts a newline; plain Enter sends the report.
+    // Shift + Enter inserts a newline; plain Enter opens the location modal.
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
-      handleSendReport()
+      handleSendClick()
     }
   }
 
   return (
-    <main className="flex h-screen flex-col bg-surface-white">
+    <main className="relative flex h-screen flex-col bg-surface-white">
       {/* HEADER */}
       <header className="flex items-center justify-between px-4 py-3">
         <button
@@ -235,7 +274,7 @@ export default function Home() {
           <button
             type="button"
             aria-label="Send"
-            onClick={handleSendReport}
+            onClick={handleSendClick}
             disabled={!message.trim()}
             className="cursor-pointer rounded-full bg-unilag-maroon p-3 text-white disabled:opacity-40"
           >
@@ -243,6 +282,48 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      {/* Location confirmation modal */}
+      {showLocationModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-surface-white p-6 shadow-xl">
+            <h3 className="mb-1 text-lg font-bold text-ink-main">
+              Confirm Location
+            </h3>
+            <p className="mb-4 text-xs text-ink-muted">
+              Where exactly is this happening?
+            </p>
+
+            <input
+              autoFocus
+              type="text"
+              value={locationText}
+              onChange={(event) => setLocationText(event.target.value)}
+              placeholder="e.g., Faculty of Science, Block B"
+              className="mb-5 w-full rounded-xl border-2 border-gray-200 bg-surface-gray p-3 text-ink-main outline-none focus:border-unilag-maroon"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void confirmSendReport()
+              }}
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLocationModal(false)}
+                className="flex-1 rounded-xl bg-gray-100 py-3 font-semibold text-ink-muted hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void confirmSendReport()}
+                disabled={!locationText.trim()}
+                className="flex-1 rounded-xl bg-unilag-maroon py-3 font-bold text-surface-white transition-transform disabled:opacity-50 active:scale-95"
+              >
+                Send Alert
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
