@@ -8,6 +8,8 @@ import {
   SirenIcon,
 } from '../components/icons'
 import { useIncidents } from '../context/IncidentContext'
+import { useToast } from '../context/ToastContext'
+import { formatLocation } from '../lib/formatLocation'
 import { incidentTitle } from '../lib/incidentTitle'
 
 const DEPARTMENTS = ['Alpha Base', 'Medical Center', 'Fire Station'] as const
@@ -26,8 +28,10 @@ export default function Home() {
   const [attachments, setAttachments] = useState<string[]>([])
   const [showLocationModal, setShowLocationModal] = useState(false)
   const [locationText, setLocationText] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
   const { submitIncident } = useIncidents()
+  const { showToast } = useToast()
 
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -102,13 +106,17 @@ export default function Home() {
   // Second step: after a location is confirmed, push the payload to the mock
   // backend, record the report locally, and advance to live tracking.
   const confirmSendReport = async () => {
-    if (!locationText.trim()) return
+    if (!locationText.trim()) {
+      showToast('error', 'Please enter your location.')
+      return
+    }
 
     const tagged = selectedDepts.join(', ') || 'General Dispatch'
+    const formattedLocation = formatLocation(locationText)
     const payload = {
       incidentId: `INC-2026-${Math.floor(Math.random() * 900 + 100)}`,
       type: incidentTitle(tagged),
-      locationText,
+      locationText: formattedLocation,
       // Hardcoding Senate Building coordinates for MVP map testing.
       coordinates: SENATE_COORDS,
       taggedDepartments: selectedDepts,
@@ -116,7 +124,14 @@ export default function Home() {
       timestamp: new Date().toISOString(),
     }
 
-    await submitIncidentToBackend(payload)
+    setIsSubmitting(true)
+    try {
+      await submitIncidentToBackend(payload)
+    } catch {
+      setIsSubmitting(false)
+      showToast('error', 'Could not send your report. Please try again.')
+      return
+    }
 
     submitIncident({
       text: payload.description,
@@ -124,6 +139,8 @@ export default function Home() {
       locationText: payload.locationText,
       images: attachments,
     })
+    setIsSubmitting(false)
+    showToast('success', 'Report sent — responders have been notified.')
 
     // Reset every piece of composer state for the next report.
     setMessage('')
@@ -146,7 +163,7 @@ export default function Home() {
   }
 
   return (
-    <main className="relative flex h-screen flex-col bg-surface-white">
+    <main className="relative flex min-h-dvh flex-col bg-surface-white">
       {/* HEADER */}
       <header className="flex items-center justify-between px-4 py-3">
         <button
@@ -302,7 +319,8 @@ export default function Home() {
               placeholder="e.g., Faculty of Science, Block B"
               className="mb-5 w-full rounded-xl border-2 border-gray-200 bg-surface-gray p-3 text-ink-main outline-none focus:border-unilag-maroon"
               onKeyDown={(event) => {
-                if (event.key === 'Enter') void confirmSendReport()
+                if (event.key === 'Enter' && !isSubmitting)
+                  void confirmSendReport()
               }}
             />
 
@@ -315,10 +333,10 @@ export default function Home() {
               </button>
               <button
                 onClick={() => void confirmSendReport()}
-                disabled={!locationText.trim()}
+                disabled={!locationText.trim() || isSubmitting}
                 className="flex-1 rounded-xl bg-unilag-maroon py-3 font-bold text-surface-white transition-transform disabled:opacity-50 active:scale-95"
               >
-                Send Alert
+                {isSubmitting ? 'Sending…' : 'Send Alert'}
               </button>
             </div>
           </div>
