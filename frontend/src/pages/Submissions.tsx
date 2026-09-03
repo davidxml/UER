@@ -80,7 +80,7 @@ export default function Submissions() {
                 <div className="flex flex-col gap-1.5 text-sm text-ink-muted">
                   <div className="flex items-center gap-2">
                     <MapPinIcon className="h-4 w-4" />
-                    <span>{incident.location}</span>
+                    <span>{incident.locationText || incident.location}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <ClockIcon className="h-4 w-4" />
