@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { CameraIcon, MenuIcon, SendIcon, SirenIcon } from '../components/icons'
 
 const DEPARTMENTS = ['Alpha Base', 'Medical Center', 'Fire Station'] as const
@@ -17,6 +17,18 @@ export default function Home() {
 
   const tagRef = useRef<HTMLDivElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const messageInputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Grow the reporting box to fit its content, capped so the send button and
+  // the page centre stay visible. Reset when the report is sent.
+  function resizeMessage() {
+    const el = messageInputRef.current
+    if (!el) return
+    el.style.height = '0px'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }
+
+  useEffect(resizeMessage, [message])
 
   useEffect(() => {
     if (!isTagOpen) return
@@ -47,13 +59,22 @@ export default function Home() {
   }
 
   // Prototype only: no API call, no upload, no location capture.
-  function handleSend(event: FormEvent<HTMLFormElement>) {
+  function handleSend(event: FormEvent) {
     event.preventDefault()
     if (!message.trim()) return
     setMessage('')
     setDepartments([])
     setVeryUrgent(false)
     setHasPhoto(false)
+    if (messageInputRef.current) messageInputRef.current.style.height = 'auto'
+  }
+
+  // Shift + Enter inserts a newline instead of submitting the report.
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      handleSend(event)
+    }
   }
 
   // Keep the pill readable on narrow screens: name it when one department is
@@ -191,13 +212,15 @@ export default function Home() {
             <CameraIcon className="h-6 w-6" />
           </button>
 
-          <input
-            type="text"
+          <textarea
+            ref={messageInputRef}
+            rows={1}
             value={message}
             onChange={(event) => setMessage(event.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="...Report an incident"
             aria-label="Report an incident"
-            className="h-12 min-w-0 flex-1 rounded-full border-2 border-wine bg-cream px-4 text-base text-wine outline-none placeholder:text-wine/50 focus:border-wine-dark"
+            className="max-h-40 min-h-12 min-w-0 flex-1 resize-none overflow-y-auto rounded-3xl border-2 border-wine bg-cream px-4 py-3 text-base text-wine outline-none placeholder:text-wine/50 focus:border-wine-dark"
           />
 
           <button
