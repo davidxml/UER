@@ -3,7 +3,6 @@ import {
   AlertTriangleIcon,
   ArrowLeftIcon,
   CheckCircle2Icon,
-  MapPinIcon,
   ShieldIcon,
 } from '../components/icons'
 import { useIncidents } from '../context/IncidentContext'
@@ -80,13 +79,20 @@ export default function Tracking() {
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Map placeholder */}
-        <div className="relative flex h-48 w-full items-center justify-center bg-surface-gray">
-          <div className="z-10 animate-bounce rounded-full bg-surface-white p-3 shadow-lg">
-            <MapPinIcon className="h-6 w-6 text-unilag-maroon" />
-          </div>
-          <div className="absolute bottom-2 left-2 rounded-md bg-surface-white/90 px-3 py-1 text-xs font-bold text-ink-main shadow-sm backdrop-blur-sm">
-            Live Location Tracked
+        {/* Hardcoded map to the UNILAG Senate Building for the MVP */}
+        <div className="relative h-48 w-full bg-gray-200">
+          <iframe
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3963.856987747806!2d3.3983279147711467!3d6.517086895286596!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x103b8ce8ab6e2f17%3A0x889812423b490f!2sSenate%20House%2C%20University%20Of%20Lagos!5e0!3m2!1sen!2sng!4v1693760000000!5m2!1sen!2sng"
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            className="absolute inset-0"
+            title="Incident location map"
+          />
+          <div className="absolute bottom-2 left-2 z-10 rounded-md bg-white/90 px-3 py-1 text-xs font-bold text-gray-700 shadow-sm backdrop-blur-sm">
+            {incident.locationText || 'Senate Building Tracked'}
           </div>
         </div>
 
