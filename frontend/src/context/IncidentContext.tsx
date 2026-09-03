@@ -8,6 +8,7 @@ export type Incident = {
   id: string
   type: string
   location: string
+  locationText: string
   time: string
   status: IncidentStatus
   tagged: string
@@ -22,6 +23,7 @@ type IncidentContextValue = {
   submitIncident: (payload: {
     text: string
     tagged: string
+    locationText?: string
     images?: string[]
   }) => Incident
   viewIncident: (id: string) => void
@@ -44,11 +46,17 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
   const [activeIncidentId, setActiveIncidentId] = useState<string | null>(null)
 
   const submitIncident = useCallback(
-    (payload: { text: string; tagged: string; images?: string[] }) => {
+    (payload: {
+      text: string
+      tagged: string
+      locationText?: string
+      images?: string[]
+    }) => {
       const incident: Incident = {
         id: nextIncidentId(),
         type: incidentTitle(payload.tagged),
         location: 'Location pending...',
+        locationText: payload.locationText ?? '',
         time: new Date().toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
