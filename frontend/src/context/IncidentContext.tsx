@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { incidentTitle } from '../lib/incidentTitle'
 
 export type IncidentStatus = 'Reported' | 'En Route' | 'Resolved'
 
@@ -46,7 +47,7 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
     (payload: { text: string; tagged: string; images?: string[] }) => {
       const incident: Incident = {
         id: nextIncidentId(),
-        type: 'General Report',
+        type: incidentTitle(payload.tagged),
         location: 'Location pending...',
         time: new Date().toLocaleTimeString([], {
           hour: '2-digit',
