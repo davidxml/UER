@@ -19,7 +19,7 @@ export default function Submissions() {
   const { incidents, viewIncident } = useIncidents()
 
   return (
-    <main className="flex h-screen flex-col bg-surface-white">
+    <main className="flex min-h-dvh flex-col bg-surface-white">
       <header className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
         <button
           type="button"

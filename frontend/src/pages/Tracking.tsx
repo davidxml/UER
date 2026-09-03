@@ -26,7 +26,7 @@ export default function Tracking() {
 
   if (!incident) {
     return (
-      <main className="flex h-screen flex-col items-center justify-center bg-surface-white px-8 text-center">
+      <main className="flex min-h-dvh flex-col items-center justify-center bg-surface-white px-8 text-center">
         <p className="text-sm font-semibold text-ink-main">
           No incident selected
         </p>
@@ -62,7 +62,7 @@ export default function Tracking() {
   ]
 
   return (
-    <main className="flex h-screen flex-col bg-surface-white">
+    <main className="flex min-h-dvh flex-col bg-surface-white">
       <header className="flex items-center border-b border-gray-100 px-4 py-3">
         <button
           type="button"

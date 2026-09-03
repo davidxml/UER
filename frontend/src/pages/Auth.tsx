@@ -64,7 +64,7 @@ export default function Auth() {
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-unilag-maroon py-3 font-semibold text-white hover:bg-unilag-maroonDark"
+            className="w-full rounded-lg bg-unilag-maroon py-3 font-semibold text-white hover:bg-unilag-maroon-dark"
           >
             Send OTP
           </button>
