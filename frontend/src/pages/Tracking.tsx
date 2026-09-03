@@ -149,6 +149,24 @@ export default function Tracking() {
               <p className="text-sm italic text-ink-main">"{incident.text}"</p>
             </div>
           )}
+
+          {incident.images && incident.images.length > 0 && (
+            <div className="mt-4">
+              <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-muted">
+                Attached Photos
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {incident.images.map((src, index) => (
+                  <img
+                    key={src}
+                    src={src}
+                    alt={`Photo ${index + 1}`}
+                    className="h-24 w-24 rounded-lg border border-gray-200 object-cover"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>
