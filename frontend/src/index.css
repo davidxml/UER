@@ -6,6 +6,16 @@
   --color-cream: #fdfbf7;
   --color-ink: #1d1417;
   --color-muted: #7a6b6f;
+  --color-unilag-maroon: #800000;
+  --color-unilag-maroon-dark: #5c0000;
+  --color-unilag-gold: #ffd700;
+  --color-surface-white: #ffffff;
+  --color-surface-gray: #f8f9fa;
+  --color-status-danger: #ef4444;
+  --color-status-warning: #f59e0b;
+  --color-status-success: #10b981;
+  --color-ink-main: #111827;
+  --color-ink-muted: #6b7280;
   --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
