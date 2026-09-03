@@ -129,8 +129,11 @@ export default function Home() {
       </header>
 
       {/* MAIN — central crest */}
-      <div className="flex min-h-0 flex-1 items-center justify-center">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
         <ShieldIcon className="h-24 w-24 text-unilag-maroon" />
+        <p className="text-sm font-medium text-ink-muted">
+          Describe the incident, attach a photo, and tag a department
+        </p>
       </div>
 
       {/* BOTTOM INPUT AREA */}
