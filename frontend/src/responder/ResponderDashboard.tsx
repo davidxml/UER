@@ -1,39 +1,38 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useIncidents } from '../context/IncidentContext'
-import type { Department } from '../shared/constants'
+import { clearResponderSession, readResponderSession } from './responderAuth'
 import DispatchPanel from './DispatchPanel'
 import IncidentQueue from './IncidentQueue'
 import type { QueueFilter } from './IncidentQueue'
-import ResponderLogin from './ResponderLogin'
 import Sidebar from './Sidebar'
 
 /**
- * Composes the responder console. Holds only local UI state (department,
- * selected incident, active tab) — the incident data itself flows from
- * IncidentContext (shared, localStorage-synced) so status changes here appear
- * on the Reporter's Tracking screen live.
+ * Composes the responder console. The active department comes from the
+ * persisted responder session (guarded at the route layer), and incident data
+ * flows from the shared, localStorage-synced IncidentContext — so status
+ * changes here appear on the Reporter's Tracking screen live.
  */
 export default function ResponderDashboard() {
+  const navigate = useNavigate()
   const { incidents } = useIncidents()
-  const [department, setDepartment] = useState<Department | null>(null)
+  const department = readResponderSession()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<QueueFilter>('All')
 
-  if (!department) {
-    return <ResponderLogin onLogin={setDepartment} />
-  }
+  // The route guard guarantees a session; this is purely a defensive fallback.
+  if (!department) return null
 
-  const handleDepartmentChange = () => {
-    // The active tab filter and selection may not apply to a new unit.
-    setActiveTab('All')
-    setSelectedId(null)
+  const handleSwitchUnit = () => {
+    clearResponderSession()
+    navigate('/responder/login', { replace: true })
   }
 
   const selectedIncident = incidents.find((i) => i.id === selectedId)
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-surface-gray font-sans">
-      <Sidebar department={department} onSwitchUnit={handleDepartmentChange} />
+      <Sidebar department={department} onSwitchUnit={handleSwitchUnit} />
       <IncidentQueue
         department={department}
         activeTab={activeTab}
