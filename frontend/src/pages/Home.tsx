@@ -9,16 +9,15 @@ import {
 } from '../components/icons'
 import { useIncidents } from '../context/IncidentContext'
 import { useToast } from '../context/ToastContext'
+import { api } from '../lib/api'
 import { formatLocation } from '../lib/formatLocation'
 import { incidentTitle } from '../lib/incidentTitle'
 import { DEPARTMENTS } from '../shared/constants'
 import type { Department } from '../shared/constants'
+import type { Incident } from '../shared/types'
 
 const MAX_ATTACHMENTS = 4
 const MAX_INPUT_HEIGHT = 120
-
-// Hardcoded UNILAG Senate Building coordinates for the MVP map test.
-const SENATE_COORDS = { lat: 6.517086, lng: 3.398327 }
 
 export default function Home() {
   const [message, setMessage] = useState('')
@@ -29,7 +28,7 @@ export default function Home() {
   const [locationText, setLocationText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
-  const { submitIncident } = useIncidents()
+  const { addIncident } = useIncidents()
   const { showToast } = useToast()
 
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -86,15 +85,6 @@ export default function Home() {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
   }
 
-  // Mock POST to the Spring Boot backend. Once the controller exists this
-  // becomes a real call to POST /api/v1/incidents.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const submitIncidentToBackend = async (payload: any) => {
-    // TODO: Replace with actual Spring Boot endpoint: POST /api/v1/incidents
-    console.log('Mocking API POST to /api/v1/incidents', payload)
-    return new Promise((resolve) => setTimeout(resolve, 500))
-  }
-
   // First step: the Send action only opens the location confirmation modal.
   // The report is not committed until the user confirms the location.
   const handleSendClick = () => {
@@ -102,8 +92,9 @@ export default function Home() {
     setShowLocationModal(true)
   }
 
-  // Second step: after a location is confirmed, push the payload to the mock
-  // backend, record the report locally, and advance to live tracking.
+  // Second step: after a location is confirmed, POST to the Spring Boot
+  // backend, insert the server-returned incident into local state, and
+  // advance to live tracking.
   const confirmSendReport = async () => {
     if (!locationText.trim()) {
       showToast('error', 'Please enter your location.')
@@ -112,32 +103,31 @@ export default function Home() {
 
     const tagged = selectedDepts.join(', ') || 'General Dispatch'
     const formattedLocation = formatLocation(locationText)
-    const payload = {
-      incidentId: `INC-2026-${Math.floor(Math.random() * 900 + 100)}`,
-      type: incidentTitle(tagged),
-      locationText: formattedLocation,
-      // Hardcoding Senate Building coordinates for MVP map testing.
-      coordinates: SENATE_COORDS,
-      taggedDepartments: selectedDepts,
-      description: message.trim(),
-      timestamp: new Date().toISOString(),
-    }
+    const now = new Date()
+    const time = now.toLocaleTimeString('en-NG', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
 
     setIsSubmitting(true)
     try {
-      await submitIncidentToBackend(payload)
+      const incident = await api.post<Incident>('/api/v1/incidents', {
+        id: `INC-${now.getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+        type: incidentTitle(tagged),
+        locationText: formattedLocation,
+        tagged,
+        text: message.trim(),
+        time,
+        severity: 'medium',
+        images: attachments,
+      })
+      addIncident(incident)
     } catch {
       setIsSubmitting(false)
       showToast('error', 'Could not send your report. Please try again.')
       return
     }
 
-    submitIncident({
-      text: payload.description,
-      tagged,
-      locationText: payload.locationText,
-      images: attachments,
-    })
     setIsSubmitting(false)
     showToast('success', 'Report sent — responders have been notified.')
 
