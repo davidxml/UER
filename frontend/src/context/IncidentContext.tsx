@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react'
 import type { ReactNode } from 'react'
+import { useWebSocket } from '../hooks/useWebSocket'
 import { incidentTitle } from '../lib/incidentTitle'
 import type { Incident, IncidentStatus, SubmitIncidentPayload } from '../shared/types'
 
@@ -15,6 +16,7 @@ const STORAGE_KEY = 'uer_incidents'
 type IncidentContextValue = {
   incidents: Incident[]
   activeIncidentId: string | null
+  wsConnected: boolean
   submitIncident: (payload: SubmitIncidentPayload) => Incident
   viewIncident: (id: string) => void
   updateIncidentStatus: (id: string, status: IncidentStatus) => void
@@ -75,6 +77,23 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
 
+  // WebSocket upsert: when the server broadcasts an incident on /topic/incidents,
+  // either replace it in the array (status/severity changed) or prepend it
+  // (new incident). This replaces localStorage as the real-time sync channel.
+  const handleWsUpdate = useCallback((incident: Incident) => {
+    setIncidents((current) => {
+      const idx = current.findIndex((i) => i.id === incident.id)
+      if (idx !== -1) {
+        const next = [...current]
+        next[idx] = incident
+        return next
+      }
+      return [incident, ...current]
+    })
+  }, [])
+
+  const { connected: wsConnected } = useWebSocket(handleWsUpdate)
+
   const refreshIncidents = useCallback(() => {
     setIncidents(readStoredIncidents())
   }, [])
@@ -125,6 +144,7 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
     () => ({
       incidents,
       activeIncidentId,
+      wsConnected,
       submitIncident,
       viewIncident,
       updateIncidentStatus,
@@ -133,6 +153,7 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
     [
       incidents,
       activeIncidentId,
+      wsConnected,
       submitIncident,
       viewIncident,
       updateIncidentStatus,
