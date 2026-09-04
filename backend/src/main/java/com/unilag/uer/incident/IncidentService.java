@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -19,9 +20,11 @@ public class IncidentService {
     private static final Set<String> VALID_SEVERITIES = Set.of("high", "medium", "low");
 
     private final IncidentRepository repository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public IncidentService(IncidentRepository repository) {
+    public IncidentService(IncidentRepository repository, SimpMessagingTemplate messagingTemplate) {
         this.repository = repository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -54,7 +57,9 @@ public class IncidentService {
                 .images(request.getImages() != null ? request.getImages() : List.of())
                 .build();
 
-        return repository.save(incident);
+        Incident saved = repository.save(incident);
+        messagingTemplate.convertAndSend("/topic/incidents", saved);
+        return saved;
     }
 
     /**
@@ -96,7 +101,9 @@ public class IncidentService {
 
         Incident incident = getIncidentById(id);
         incident.setStatus(newStatus);
-        return repository.save(incident);
+        Incident updated = repository.save(incident);
+        messagingTemplate.convertAndSend("/topic/incidents", updated);
+        return updated;
     }
 
     /**
@@ -111,6 +118,8 @@ public class IncidentService {
 
         Incident incident = getIncidentById(id);
         incident.setSeverity(newSeverity);
-        return repository.save(incident);
+        Incident updated = repository.save(incident);
+        messagingTemplate.convertAndSend("/topic/incidents", updated);
+        return updated;
     }
 }
