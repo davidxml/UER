@@ -8,7 +8,7 @@ import Auth from './pages/Auth'
 import Home from './pages/Home'
 import Submissions from './pages/Submissions'
 import Tracking from './pages/Tracking'
-import ResponderDashboard from './pages/ResponderDashboard'
+import ResponderDashboard from './responder/ResponderDashboard'
 import './App.css'
 
 /** Gates the reporter screens behind an authenticated session (incl. guest). */
@@ -72,7 +72,7 @@ function App() {
                   </RequireAuth>
                 }
               />
-              {/* TEMP: responder dashboard test route */}
+              {/* Responder/Admin dashboard */}
               <Route path="/responder" element={<ResponderDashboard />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

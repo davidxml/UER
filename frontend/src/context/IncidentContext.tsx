@@ -17,6 +17,7 @@ type IncidentContextValue = {
   activeIncidentId: string | null
   submitIncident: (payload: SubmitIncidentPayload) => Incident
   viewIncident: (id: string) => void
+  updateIncidentStatus: (id: string, status: IncidentStatus) => void
   refreshIncidents: () => void
 }
 
@@ -104,15 +105,39 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
     setActiveIncidentId(id)
   }, [])
 
+  /**
+   * Advances an incident's status (e.g. Reported -> En Route -> Resolved).
+   * Persisted through the same incidents state, so the Reporter's Tracking
+   * screen reflects the change live via its STEP_COUNT timeline logic.
+   */
+  const updateIncidentStatus = useCallback(
+    (id: string, status: IncidentStatus) => {
+      setIncidents((current) =>
+        current.map((incident) =>
+          incident.id === id ? { ...incident, status } : incident,
+        ),
+      )
+    },
+    [],
+  )
+
   const value = useMemo<IncidentContextValue>(
     () => ({
       incidents,
       activeIncidentId,
       submitIncident,
       viewIncident,
+      updateIncidentStatus,
       refreshIncidents,
     }),
-    [incidents, activeIncidentId, submitIncident, viewIncident, refreshIncidents],
+    [
+      incidents,
+      activeIncidentId,
+      submitIncident,
+      viewIncident,
+      updateIncidentStatus,
+      refreshIncidents,
+    ],
   )
 
   return (
