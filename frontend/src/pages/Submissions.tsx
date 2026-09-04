@@ -6,7 +6,7 @@ import {
   MapPinIcon,
 } from '../components/icons'
 import { useIncidents } from '../context/IncidentContext'
-import type { IncidentStatus } from '../context/IncidentContext'
+import type { IncidentStatus } from '../shared/types'
 
 const STATUS_STYLES: Record<IncidentStatus, string> = {
   Reported: 'bg-status-warning/20 text-status-warning',

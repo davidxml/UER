@@ -11,9 +11,8 @@ import { useIncidents } from '../context/IncidentContext'
 import { useToast } from '../context/ToastContext'
 import { formatLocation } from '../lib/formatLocation'
 import { incidentTitle } from '../lib/incidentTitle'
-
-const DEPARTMENTS = ['Alpha Base', 'Medical Center', 'Fire Station'] as const
-type Department = (typeof DEPARTMENTS)[number]
+import { DEPARTMENTS } from '../shared/constants'
+import type { Department } from '../shared/constants'
 
 const MAX_ATTACHMENTS = 4
 const MAX_INPUT_HEIGHT = 120
