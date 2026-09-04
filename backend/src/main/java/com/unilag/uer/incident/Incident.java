@@ -2,6 +2,9 @@ package com.unilag.uer.incident;
 
 import java.util.List;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -66,6 +69,6 @@ public class Incident {
 
     /** Base64 photo data-URLs, up to 4, stored as a JSONB array. */
     @Column(name = "images", columnDefinition = "jsonb")
-    @Convert(converter = StringListJsonConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     private List<String> images;
 }
