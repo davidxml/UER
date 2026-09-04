@@ -14,7 +14,7 @@ import {
   readResponderSession,
   saveResponderSession,
 } from './responder/responderAuth'
-import type { Department } from './shared/constants'
+import type { ResponderSession } from './responder/responderAuth'
 import './App.css'
 
 /** Gates the reporter screens behind an authenticated session (incl. guest). */
@@ -39,24 +39,24 @@ function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
 }
 
 /**
- * Gates the responder dashboard behind an active responder session (a unit
- * stored under 'uer_responder_auth'). Mirrors RequireAuth, but reads the
+ * Gates the responder dashboard behind an active responder session (a unit +
+ * JWT stored under 'uer_responder_auth'). Mirrors RequireAuth, but reads the
  * localStorage session directly — synchronous, so no hydration flag is needed.
  */
 function RequireResponderAuth({ children }: { children: ReactNode }) {
-  const department = readResponderSession()
-  if (!department) return <Navigate to="/responder/login" replace />
+  const session = readResponderSession()
+  if (!session) return <Navigate to="/responder/login" replace />
   return children
 }
 
-/** Responder login route: persists the chosen unit, then goes to the dashboard. */
+/** Responder login route: persists the JWT session, then goes to the dashboard. */
 function ResponderLoginRoute() {
   const navigate = useNavigate()
 
   return (
     <ResponderLogin
-      onLogin={(department: Department) => {
-        saveResponderSession(department)
+      onLogin={(session: ResponderSession) => {
+        saveResponderSession(session)
         // Replace so Back cannot return to a spent login form.
         navigate('/responder/dashboard', { replace: true })
       }}
