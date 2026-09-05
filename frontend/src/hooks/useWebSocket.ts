@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Client, IMessage } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
+import { readResponderSession } from '../responder/responderAuth'
 import type { Incident } from '../shared/types'
 
-const WS_URL = import.meta.env.DEV ? '/ws' : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
+// The backend registers /ws with SockJS, so the client must talk SockJS too —
+// a raw WebSocket upgrade to /ws is rejected (the endpoint only negotiates the
+// SockJS transports). In dev the /ws proxy forwards to :8080; in prod the app
+// hits the same origin the bundle was served from.
+const WS_URL = import.meta.env.DEV ? '/ws' : `${window.location.origin}/ws`
 
 /**
- * Connects to the Spring Boot STOMP broker and exposes:
+ * Connects to the Spring Boot STOMP broker over SockJS and exposes:
  *
  * - `connected` — boolean, true when the STOMP handshake has completed
  * - `send(destination, body)` — publishes a message to an /app/* destination
@@ -13,6 +19,10 @@ const WS_URL = import.meta.env.DEV ? '/ws' : `${window.location.protocol === 'ht
  * Every incident broadcast on `/topic/incidents` is parsed and passed to
  * `onIncidentUpdate`. The caller (IncidentContext) decides how to merge it
  * into the existing array.
+ *
+ * When a responder session (with a JWT) is present, the token is attached in
+ * the STOMP CONNECT frame so the backend's StompAuthConfig authenticates the
+ * session. Reporters connect anonymously and still receive broadcasts.
  */
 export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
   const [connected, setConnected] = useState(false)
@@ -25,8 +35,14 @@ export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
   }, [onIncidentUpdate])
 
   useEffect(() => {
+    // Read once at mount: the responder app mounts the dashboard AFTER login,
+    // so the stored JWT is already available here. Reporters have no session.
+    const session = readResponderSession()
     const client = new Client({
-      brokerURL: WS_URL,
+      webSocketFactory: () => new SockJS(WS_URL),
+      connectHeaders: session
+        ? { Authorization: `Bearer ${session.token}` }
+        : {},
 
       onConnect: () => {
         setConnected(true)
