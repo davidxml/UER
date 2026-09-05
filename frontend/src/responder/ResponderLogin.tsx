@@ -1,32 +1,42 @@
 import { useState } from 'react'
 import { ShieldAlertIcon } from '../components/icons'
+import { api } from '../lib/api'
 import { DEPARTMENTS } from '../shared/constants'
 import type { Department } from '../shared/constants'
+import type { ResponderSession } from './responderAuth'
 
 type ResponderLoginProps = {
-  onLogin: (department: Department) => void
+  onLogin: (session: ResponderSession) => void
 }
 
 /**
- * Respondent credential entry: pick a unit then enter a PIN. Every department
- * accepts "1234" in this stub.
- *
- * TODO(swap-before-production): replace the hardcoded PIN check with a real
- * backend OTP/PIN verification per department.
+ * Responder credential entry: pick a unit then enter a PIN. The PIN is
+ * verified against the backend (POST /api/v1/auth/responder/login), which
+ * returns a JWT. That token is stored in the session and sent as a Bearer
+ * header on every responder mutation.
  */
 export default function ResponderLogin({ onLogin }: ResponderLoginProps) {
   const [department, setDepartment] = useState<Department | null>(null)
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    // Stub credential check — every unit accepts the same dev PIN.
-    if (pin === '1234' && department) {
-      onLogin(department)
-      return
+    if (!department) return
+    setSubmitting(true)
+    setError('')
+    try {
+      const { token } = await api.post<{ token: string }>(
+        '/api/v1/auth/responder/login',
+        { department, pin },
+      )
+      onLogin({ department, token })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign in failed. Try again.')
+    } finally {
+      setSubmitting(false)
     }
-    setError('Invalid PIN. For this demo, use 1234.')
   }
 
   return (
@@ -104,10 +114,10 @@ export default function ResponderLogin({ onLogin }: ResponderLoginProps) {
 
             <button
               type="submit"
-              disabled={pin.length !== 4}
+              disabled={pin.length !== 4 || submitting}
               className="w-full rounded-lg bg-unilag-maroon py-3 font-semibold text-white disabled:opacity-50"
             >
-              Sign In
+              {submitting ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
         )}

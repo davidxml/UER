@@ -16,7 +16,7 @@ export default function Sidebar({ department, onSwitchUnit }: SidebarProps) {
       <div className="flex h-16 items-center gap-3 border-b border-gray-200 px-6">
         <ShieldAlertIcon className="h-7 w-7 text-unilag-maroon" />
         <h1 className="text-xl font-bold tracking-wider text-unilag-maroon">
-          UER DISPATCH
+          UER RESPONDERS
         </h1>
       </div>
 

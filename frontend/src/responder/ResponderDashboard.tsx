@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useIncidents } from '../context/IncidentContext'
-import { clearResponderSession, readResponderSession } from './responderAuth'
+import {
+  clearResponderSession,
+  readResponderDepartment,
+} from './responderAuth'
 import DispatchPanel from './DispatchPanel'
 import IncidentQueue from './IncidentQueue'
 import type { QueueFilter } from './IncidentQueue'
@@ -16,7 +19,7 @@ import Sidebar from './Sidebar'
 export default function ResponderDashboard() {
   const navigate = useNavigate()
   const { incidents } = useIncidents()
-  const department = readResponderSession()
+  const department = readResponderDepartment()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<QueueFilter>('All')
 

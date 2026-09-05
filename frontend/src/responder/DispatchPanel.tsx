@@ -5,6 +5,7 @@ import {
   ShieldAlertIcon,
 } from '../components/icons'
 import { useIncidents } from '../context/IncidentContext'
+import { useToast } from '../context/ToastContext'
 import type { Incident } from '../shared/types'
 import { STATUS_BADGE } from './statusStyles'
 
@@ -27,6 +28,13 @@ function taggedChips(tagged: string): string[] {
  */
 export default function DispatchPanel({ incident }: DispatchPanelProps) {
   const { updateIncidentStatus } = useIncidents()
+  const { showToast } = useToast()
+
+  const handleStatus = (id: string, status: Incident['status']) => {
+    updateIncidentStatus(id, status).catch(() =>
+      showToast('error', 'Could not update status. Try again.'),
+    )
+  }
 
   if (!incident) {
     return (
@@ -108,7 +116,7 @@ export default function DispatchPanel({ incident }: DispatchPanelProps) {
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => updateIncidentStatus(incident.id, 'En Route')}
+            onClick={() => handleStatus(incident.id, 'En Route')}
             disabled={incident.status !== 'Reported'}
             className="flex items-center justify-center gap-2 rounded-xl bg-status-warning px-4 py-3 font-bold text-white shadow-md transition-all hover:opacity-90 disabled:opacity-50"
           >
@@ -117,7 +125,7 @@ export default function DispatchPanel({ incident }: DispatchPanelProps) {
           </button>
           <button
             type="button"
-            onClick={() => updateIncidentStatus(incident.id, 'Resolved')}
+            onClick={() => handleStatus(incident.id, 'Resolved')}
             disabled={incident.status === 'Resolved'}
             className="flex items-center justify-center gap-2 rounded-xl bg-status-success px-4 py-3 font-bold text-white shadow-md transition-all hover:opacity-90 disabled:opacity-50"
           >
