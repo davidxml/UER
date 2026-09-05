@@ -1,44 +1,42 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ShieldAlertIcon } from '../components/icons'
 import { useAuth } from '../context/AuthContext'
-import UerLogo from '../assets/uer-logo.svg'
-
-const PIN_LENGTH = 4
 
 export default function Auth() {
   const [matricNumber, setMatricNumber] = useState('')
-  const [pin, setPin] = useState('')
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, loginAsGuest } = useAuth()
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
-    // Prototype login: the PIN gates the submit but is never persisted.
-    // Mirrors the native required/minLength rules on the inputs.
-    if (!matricNumber.trim() || pin.length !== PIN_LENGTH) return
+    if (!matricNumber.trim()) return
 
     login(matricNumber)
-    // Replace, so Back cannot land on a login form that would only bounce
-    // straight back to /home.
+    // Replace so Back cannot land on a login form that would bounce back.
+    navigate('/home', { replace: true })
+  }
+
+  function handleGuestBypass() {
+    // Guest reaches the reporting flow without a matric number. The session
+    // is kept in memory only, so a refresh returns to this screen.
+    loginAsGuest()
     navigate('/home', { replace: true })
   }
 
   return (
-    <main className="flex min-h-svh w-full flex-col justify-center bg-cream px-6 py-10">
+    <main className="flex min-h-svh w-full flex-col justify-center bg-surface-white px-6 py-10">
       <div className="mx-auto w-full max-w-sm">
-        <img
-          src={UerLogo}
-          alt="UER"
-          className="mx-auto mb-10 h-16 w-16"
-        />
+        <div className="mb-10 flex justify-center">
+          <ShieldAlertIcon className="h-16 w-16 text-unilag-maroon" />
+        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <label
               htmlFor="matric-number"
-              className="text-sm font-semibold text-wine"
+              className="text-sm font-semibold text-unilag-maroon"
             >
               Matric Number
             </label>
@@ -55,40 +53,38 @@ export default function Auth() {
               autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}
-              className="h-14 w-full rounded-xl border-2 border-wine bg-cream px-4 text-base text-ink outline-none placeholder:text-muted focus:border-wine-dark focus:ring-2 focus:ring-wine/25"
+              placeholder="e.g. 210201001"
+              className="h-14 w-full rounded-lg border border-gray-300 bg-surface-white px-4 text-base text-ink-main outline-none placeholder:text-ink-muted focus:border-unilag-maroon"
             />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="pin" className="text-sm font-semibold text-wine">
-              4-Digit PIN
-            </label>
-            <input
-              id="pin"
-              name="pin"
-              type="password"
-              inputMode="numeric"
-              value={pin}
-              onChange={(event) =>
-                setPin(
-                  event.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH),
-                )
-              }
-              required
-              minLength={PIN_LENGTH}
-              maxLength={PIN_LENGTH}
-              autoComplete="off"
-              className="h-14 w-full rounded-xl border-2 border-wine bg-cream px-4 text-base tracking-[0.5em] text-ink outline-none focus:border-wine-dark focus:ring-2 focus:ring-wine/25"
-            />
+            <p className="mt-1 text-xs text-ink-muted">
+              Your account is <span className="font-semibold">{matricNumber || '[matricno]'}</span>
+              @live.unilag.edu
+            </p>
           </div>
 
           <button
             type="submit"
-            className="mt-3 h-14 w-full rounded-xl bg-wine text-base font-semibold text-cream active:bg-wine-dark"
+            className="w-full rounded-lg bg-unilag-maroon py-3 font-semibold text-white hover:bg-unilag-maroon-dark"
           >
-            Login
+            Send OTP
           </button>
         </form>
+
+        <div className="my-8 flex items-center gap-4">
+          <span className="h-px flex-1 bg-gray-300" />
+          <span className="text-sm font-bold uppercase tracking-wider text-unilag-maroon">
+            OR EMERGENCIES ONLY
+          </span>
+          <span className="h-px flex-1 bg-gray-300" />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGuestBypass}
+          className="w-full rounded-lg border-2 border-unilag-maroon py-3 font-bold text-unilag-maroon"
+        >
+          Emergency Quick Report (No Sign-in)
+        </button>
       </div>
     </main>
   )

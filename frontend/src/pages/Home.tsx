@@ -1,173 +1,216 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { CameraIcon, MenuIcon, SendIcon, SirenIcon } from '../components/icons'
+import { useNavigate } from 'react-router-dom'
+import {
+  CameraIcon,
+  MenuIcon,
+  SendIcon,
+  ShieldIcon,
+  SirenIcon,
+} from '../components/icons'
+import { useIncidents } from '../context/IncidentContext'
+import { useToast } from '../context/ToastContext'
+import { formatLocation } from '../lib/formatLocation'
+import { incidentTitle } from '../lib/incidentTitle'
+import { DEPARTMENTS } from '../shared/constants'
+import type { Department } from '../shared/constants'
 
-const DEPARTMENTS = ['Alpha Base', 'Medical Center', 'Fire Station'] as const
-type Department = (typeof DEPARTMENTS)[number]
+const MAX_ATTACHMENTS = 4
+const MAX_INPUT_HEIGHT = 120
+
+// Hardcoded UNILAG Senate Building coordinates for the MVP map test.
+const SENATE_COORDS = { lat: 6.517086, lng: 3.398327 }
 
 export default function Home() {
-  // Frontend report state: description + departments[] + veryUrgent.
-  // These three are what the incident payload will be built from later.
   const [message, setMessage] = useState('')
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [veryUrgent, setVeryUrgent] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [selectedDepts, setSelectedDepts] = useState<Department[]>([])
+  const [attachments, setAttachments] = useState<string[]>([])
+  const [showLocationModal, setShowLocationModal] = useState(false)
+  const [locationText, setLocationText] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const navigate = useNavigate()
+  const { submitIncident } = useIncidents()
+  const { showToast } = useToast()
 
-  const [isTagOpen, setIsTagOpen] = useState(false)
-  const [hasPhoto, setHasPhoto] = useState(false)
-
-  const tagRef = useRef<HTMLDivElement>(null)
-  const photoInputRef = useRef<HTMLInputElement>(null)
-  const messageInputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Grow the reporting box to fit its content, capped so the send button and
-  // the page centre stay visible. Reset when the report is sent.
-  function resizeMessage() {
-    const el = messageInputRef.current
+  // the page centre stay visible. No scrollbar: the box resizes instead.
+  const resizeInput = () => {
+    const el = inputRef.current
     if (!el) return
     el.style.height = '0px'
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+    el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`
   }
 
-  useEffect(resizeMessage, [message])
+  useEffect(resizeInput, [message])
 
-  useEffect(() => {
-    if (!isTagOpen) return
-
-    function handlePointerDown(event: PointerEvent) {
-      if (!tagRef.current?.contains(event.target as Node)) setIsTagOpen(false)
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsTagOpen(false)
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isTagOpen])
-
-  // Multi-select: a report may concern any combination of departments, so
-  // tapping a selected one removes it rather than replacing the selection.
-  function toggleDepartment(name: Department) {
-    setDepartments((current) =>
-      current.includes(name)
-        ? current.filter((selected) => selected !== name)
-        : [...current, name],
+  const toggleDepartment = (dept: Department) => {
+    setSelectedDepts((prev) =>
+      prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept],
     )
   }
 
-  // Prototype only: no API call, no upload, no location capture.
-  function handleSend(event: FormEvent) {
-    event.preventDefault()
-    if (!message.trim()) return
-    setMessage('')
-    setDepartments([])
-    setVeryUrgent(false)
-    setHasPhoto(false)
-    if (messageInputRef.current) messageInputRef.current.style.height = 'auto'
+  const getTagLabel = () => {
+    if (selectedDepts.length === 0) return '@'
+    if (selectedDepts.length === 1) return `@ ${selectedDepts[0]}`
+    return `@ ${selectedDepts.length} departments`
   }
 
-  // Shift + Enter inserts a newline instead of submitting the report.
-  function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+  function handleFiles(files: FileList | null) {
+    if (!files) return
+    const chosen = Array.from(files)
+    if (chosen.length === 0) return
+
+    void Promise.all(
+      chosen.map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = () => reject(new Error('Could not read image'))
+            reader.readAsDataURL(file)
+          }),
+      ),
+    )
+      .then((urls) => {
+        setAttachments((prev) => [...prev, ...urls].slice(0, MAX_ATTACHMENTS))
+      })
+      .catch(() => {
+        // Ignore unreadable files; the report can still be sent without them.
+      })
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // Mock POST to the Spring Boot backend. Once the controller exists this
+  // becomes a real call to POST /api/v1/incidents.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const submitIncidentToBackend = async (payload: any) => {
+    // TODO: Replace with actual Spring Boot endpoint: POST /api/v1/incidents
+    console.log('Mocking API POST to /api/v1/incidents', payload)
+    return new Promise((resolve) => setTimeout(resolve, 500))
+  }
+
+  // First step: the Send action only opens the location confirmation modal.
+  // The report is not committed until the user confirms the location.
+  const handleSendClick = () => {
+    if (!message.trim()) return
+    setShowLocationModal(true)
+  }
+
+  // Second step: after a location is confirmed, push the payload to the mock
+  // backend, record the report locally, and advance to live tracking.
+  const confirmSendReport = async () => {
+    if (!locationText.trim()) {
+      showToast('error', 'Please enter your location.')
+      return
+    }
+
+    const tagged = selectedDepts.join(', ') || 'General Dispatch'
+    const formattedLocation = formatLocation(locationText)
+    const payload = {
+      incidentId: `INC-2026-${Math.floor(Math.random() * 900 + 100)}`,
+      type: incidentTitle(tagged),
+      locationText: formattedLocation,
+      // Hardcoding Senate Building coordinates for MVP map testing.
+      coordinates: SENATE_COORDS,
+      taggedDepartments: selectedDepts,
+      description: message.trim(),
+      timestamp: new Date().toISOString(),
+    }
+
+    setIsSubmitting(true)
+    try {
+      await submitIncidentToBackend(payload)
+    } catch {
+      setIsSubmitting(false)
+      showToast('error', 'Could not send your report. Please try again.')
+      return
+    }
+
+    submitIncident({
+      text: payload.description,
+      tagged,
+      locationText: payload.locationText,
+      images: attachments,
+    })
+    setIsSubmitting(false)
+    showToast('success', 'Report sent — responders have been notified.')
+
+    // Reset every piece of composer state for the next report.
+    setMessage('')
+    setLocationText('')
+    setSelectedDepts([])
+    setAttachments([])
+    setIsMenuOpen(false)
+    setShowLocationModal(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    // Replace so Back cannot return to an empty composer.
+    navigate('/tracking', { replace: true })
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Shift + Enter inserts a newline; plain Enter opens the location modal.
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
-      handleSend(event)
+      handleSendClick()
     }
   }
 
-  // Keep the pill readable on narrow screens: name it when one department is
-  // tagged, count them once there is more than one.
-  const tagSummary =
-    departments.length === 0
-      ? null
-      : departments.length === 1
-        ? departments[0]
-        : `${departments.length} departments`
-
   return (
-    <main className="relative flex min-h-svh w-full flex-col bg-cream text-wine">
-      {/* CENTRE — UER logo, anchored to the visual centre of the viewport */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <span
-          role="img"
-          aria-label="UER"
-          className="uer-logo-mark h-44 w-44"
-          data-testid="uer-logo"
-        />
-      </div>
-
-      {/* TOP — two standalone controls, no bar and no header */}
-      <div className="relative flex items-start justify-between px-4 pt-[calc(1rem+env(safe-area-inset-top))]">
+    <main className="relative flex min-h-dvh flex-col bg-surface-white">
+      {/* HEADER */}
+      <header className="flex items-center justify-between px-4 py-3">
         <button
           type="button"
           aria-label="Menu"
-          className="flex h-11 w-11 items-center justify-center rounded-full active:bg-wine/10"
+          onClick={() => navigate('/submissions')}
+          className="flex h-11 w-11 items-center justify-center rounded-full"
         >
-          <MenuIcon className="h-6 w-6" />
+          <MenuIcon className="h-6 w-6 text-unilag-maroon" />
         </button>
 
-        {/* Very Urgent — the badge spells the state out; the filled button
-            alone would only read as "on" without saying what is on. */}
-        <div className="flex items-center gap-2">
-          {veryUrgent && (
-            <span
-              aria-hidden="true"
-              className="rounded-full bg-wine px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-cream"
-            >
-              Very Urgent
-            </span>
-          )}
+        <button
+          type="button"
+          aria-label="Alert"
+          className="flex h-11 w-11 items-center justify-center rounded-full"
+        >
+          <SirenIcon className="h-6 w-6 text-status-danger" />
+        </button>
+      </header>
 
-          <button
-            type="button"
-            aria-label="Mark report as very urgent"
-            aria-pressed={veryUrgent}
-            onClick={() => setVeryUrgent((urgent) => !urgent)}
-            className={`flex h-11 w-11 items-center justify-center rounded-full border-2 ${
-              veryUrgent
-                ? 'border-wine bg-wine text-cream'
-                : 'border-transparent text-wine active:bg-wine/10'
-            }`}
-          >
-            <SirenIcon className="h-6 w-6" />
-          </button>
-        </div>
+      {/* MAIN — central crest */}
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+        <ShieldIcon className="h-24 w-24 text-unilag-maroon" />
+        <p className="text-sm font-medium text-ink-muted">
+          Describe the incident, attach a photo, and tag a department
+        </p>
       </div>
 
-      <div className="flex-1" />
-
-      {/* BOTTOM */}
-      <div className="relative flex flex-col gap-3 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        {/* Department tagger — beside the reporting control, outside the input */}
-        <div ref={tagRef} className="relative flex justify-end">
-          {isTagOpen && (
-            <div
-              role="listbox"
-              aria-label="Tag departments"
-              aria-multiselectable="true"
-              className="absolute bottom-full right-0 mb-2 w-44 rounded-2xl border-2 border-wine bg-cream p-1"
-            >
-              {DEPARTMENTS.map((name) => {
-                const isSelected = departments.includes(name)
+      {/* BOTTOM INPUT AREA */}
+      <div className="flex flex-col gap-2 border-t border-gray-100 bg-surface-white p-4">
+        {/* Tag pill */}
+        <div className="relative flex justify-end">
+          {isMenuOpen && (
+            <div className="absolute bottom-full right-0 mb-2 flex w-48 flex-col overflow-hidden rounded-xl border border-unilag-maroon bg-surface-white shadow-lg">
+              {DEPARTMENTS.map((dept) => {
+                const isSelected = selectedDepts.includes(dept)
                 return (
                   <button
-                    key={name}
+                    key={dept}
                     type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    // Stays open on purpose: closing here would force one
-                    // reopen per department in a multi-select list.
-                    onClick={() => toggleDepartment(name)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium ${
+                    onClick={() => toggleDepartment(dept)}
+                    className={`px-4 py-2.5 text-left text-sm ${
                       isSelected
-                        ? 'bg-wine text-cream'
-                        : 'text-wine active:bg-wine/10'
+                        ? 'bg-unilag-maroon text-surface-white'
+                        : 'text-ink-main hover:bg-surface-gray'
                     }`}
                   >
-                    <span>{name}</span>
-                    {isSelected && <span aria-hidden="true">✓</span>}
+                    {dept}
                   </button>
                 )
               })}
@@ -176,63 +219,128 @@ export default function Home() {
 
           <button
             type="button"
-            aria-label="Tag departments"
-            aria-haspopup="listbox"
-            aria-expanded={isTagOpen}
-            onClick={() => setIsTagOpen((open) => !open)}
-            className={`flex h-9 items-center gap-1.5 rounded-full border-2 border-wine px-3 text-sm font-semibold ${
-              tagSummary ? 'bg-wine text-cream' : 'text-wine'
+            aria-label="Tag"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`cursor-pointer rounded-full bg-unilag-maroon px-3 py-1 text-sm font-bold text-white shadow-md transition-all duration-300 ${
+              selectedDepts.length === 1 ? 'min-w-40' : ''
             }`}
           >
-            <span aria-hidden="true">@</span>
-            {tagSummary && <span>{tagSummary}</span>}
+            {getTagLabel()}
           </button>
         </div>
 
-        {/* Reporting control — [ Camera ] [ Text Input ] [ Send ] */}
-        <form onSubmit={handleSend} className="flex items-center gap-2">
+        {/* Attached images */}
+        {attachments.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
+            {attachments.map((src, index) => (
+              <div
+                key={src}
+                className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-gray-200 sm:h-20 sm:w-20"
+              >
+                <img
+                  src={src}
+                  alt={`Attachment ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove attachment ${index + 1}`}
+                  onClick={() => removeAttachment(index)}
+                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-ink-main/70 text-xs font-bold text-surface-white"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Chat bar: [Camera] [input] [Send] */}
+        <div className="flex items-end gap-2">
           <input
-            ref={photoInputRef}
+            ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
+            multiple
             className="hidden"
-            onChange={(event) => setHasPhoto(event.target.files!.length > 0)}
+            onChange={(event) => handleFiles(event.target.files)}
           />
 
           <button
             type="button"
-            aria-label="Attach incident photo"
-            aria-pressed={hasPhoto}
-            onClick={() => photoInputRef.current?.click()}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-wine ${
-              hasPhoto ? 'bg-wine text-cream' : 'text-wine'
-            }`}
+            aria-label="Attach photo"
+            onClick={() => fileInputRef.current?.click()}
+            className="cursor-pointer rounded-full border border-unilag-maroon p-2 text-unilag-maroon"
           >
             <CameraIcon className="h-6 w-6" />
           </button>
 
           <textarea
-            ref={messageInputRef}
+            ref={inputRef}
             rows={1}
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="...Report an incident"
             aria-label="Report an incident"
-            className="max-h-40 min-h-12 min-w-0 flex-1 resize-none overflow-y-auto rounded-3xl border-2 border-wine bg-cream px-4 py-3 text-base text-wine outline-none placeholder:text-wine/50 focus:border-wine-dark"
+            className="max-h-30 min-h-[52px] flex-1 resize-none overflow-y-hidden rounded-3xl border border-gray-300 bg-surface-gray px-4 py-3 text-ink-main outline-none placeholder:text-ink-muted focus:border-unilag-maroon focus:ring-1 focus:ring-unilag-maroon"
+            style={{ height: '52px' }}
           />
 
           <button
-            type="submit"
-            aria-label="Send report"
+            type="button"
+            aria-label="Send"
+            onClick={handleSendClick}
             disabled={!message.trim()}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-wine text-cream disabled:opacity-40"
+            className="cursor-pointer rounded-full bg-unilag-maroon p-3 text-white disabled:opacity-40"
           >
             <SendIcon className="h-5 w-5" />
           </button>
-        </form>
+        </div>
       </div>
+
+      {/* Location confirmation modal */}
+      {showLocationModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-surface-white p-6 shadow-xl">
+            <h3 className="mb-1 text-lg font-bold text-ink-main">
+              Confirm Location
+            </h3>
+            <p className="mb-4 text-xs text-ink-muted">
+              Where exactly is this happening?
+            </p>
+
+            <input
+              autoFocus
+              type="text"
+              value={locationText}
+              onChange={(event) => setLocationText(event.target.value)}
+              placeholder="e.g., Faculty of Science, Block B"
+              className="mb-5 w-full rounded-xl border-2 border-gray-200 bg-surface-gray p-3 text-ink-main outline-none focus:border-unilag-maroon"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !isSubmitting)
+                  void confirmSendReport()
+              }}
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLocationModal(false)}
+                className="flex-1 rounded-xl bg-gray-100 py-3 font-semibold text-ink-muted hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void confirmSendReport()}
+                disabled={!locationText.trim() || isSubmitting}
+                className="flex-1 rounded-xl bg-unilag-maroon py-3 font-bold text-surface-white transition-transform disabled:opacity-50 active:scale-95"
+              >
+                {isSubmitting ? 'Sending…' : 'Send Alert'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

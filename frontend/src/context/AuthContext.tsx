@@ -14,17 +14,20 @@ type StoredAuth = {
 
 type AuthState = {
   isAuthenticated: boolean
+  isGuest: boolean
   matricNumber: string | null
 }
 
 type AuthContextValue = AuthState & {
   isHydrated: boolean
   login: (matricNumber: string) => void
+  loginAsGuest: () => void
   logout: () => void
 }
 
 const SIGNED_OUT: AuthState = {
   isAuthenticated: false,
+  isGuest: false,
   matricNumber: null,
 }
 
@@ -47,7 +50,7 @@ function readStoredAuth(): AuthState {
       return SIGNED_OUT
     }
 
-    return { isAuthenticated: true, matricNumber }
+    return { isAuthenticated: true, isGuest: false, matricNumber }
   } catch {
     // Storage unavailable (Safari private mode, disabled by policy) or the
     // stored value is not valid JSON.
@@ -65,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback((matricNumber: string) => {
     const normalised = matricNumber.trim().toUpperCase()
-    setState({ isAuthenticated: true, matricNumber: normalised })
+    setState({ isAuthenticated: true, isGuest: false, matricNumber: normalised })
 
     try {
       const payload: StoredAuth = { matricNumber: normalised }
@@ -73,6 +76,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Session stays valid for this tab even if it cannot be persisted.
     }
+  }, [])
+
+  // Guest bypass: reach the reporter flow without signing in. Kept in memory
+  // only — a guest has no matric number to persist, and a refreshed tab that
+  // had no real session should return to the auth screen.
+  const loginAsGuest = useCallback(() => {
+    setState({ isAuthenticated: true, isGuest: true, matricNumber: null })
   }, [])
 
   const logout = useCallback(() => {
@@ -93,9 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // correct if restoring a session ever becomes asynchronous.
       isHydrated: true,
       login,
+      loginAsGuest,
       logout,
     }),
-    [state, login, logout],
+    [state, login, loginAsGuest, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

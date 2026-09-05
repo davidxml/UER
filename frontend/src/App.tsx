@@ -1,13 +1,23 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { IncidentProvider } from './context/IncidentContext'
+import { ToastProvider } from './context/ToastContext'
 import Splash from './pages/Splash'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
-import Reported from './pages/Reported'
+import Submissions from './pages/Submissions'
+import Tracking from './pages/Tracking'
+import ResponderDashboard from './responder/ResponderDashboard'
+import ResponderLogin from './responder/ResponderLogin'
+import {
+  readResponderSession,
+  saveResponderSession,
+} from './responder/responderAuth'
+import type { Department } from './shared/constants'
 import './App.css'
 
-/** Gates /home and /reported behind an authenticated prototype session. */
+/** Gates the reporter screens behind an authenticated session (incl. guest). */
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isHydrated, isAuthenticated } = useAuth()
 
@@ -28,39 +38,87 @@ function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
   return children
 }
 
+/**
+ * Gates the responder dashboard behind an active responder session (a unit
+ * stored under 'uer_responder_auth'). Mirrors RequireAuth, but reads the
+ * localStorage session directly — synchronous, so no hydration flag is needed.
+ */
+function RequireResponderAuth({ children }: { children: ReactNode }) {
+  const department = readResponderSession()
+  if (!department) return <Navigate to="/responder/login" replace />
+  return children
+}
+
+/** Responder login route: persists the chosen unit, then goes to the dashboard. */
+function ResponderLoginRoute() {
+  const navigate = useNavigate()
+
+  return (
+    <ResponderLogin
+      onLogin={(department: Department) => {
+        saveResponderSession(department)
+        // Replace so Back cannot return to a spent login form.
+        navigate('/responder/dashboard', { replace: true })
+      }}
+    />
+  )
+}
+
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Splash />} />
-          <Route
-            path="/auth"
-            element={
-              <RedirectIfAuthenticated>
-                <Auth />
-              </RedirectIfAuthenticated>
-            }
-          />
-          <Route
-            path="/home"
-            element={
-              <RequireAuth>
-                <Home />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/reported"
-            element={
-              <RequireAuth>
-                <Reported />
-              </RequireAuth>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <IncidentProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Splash />} />
+              <Route
+                path="/auth"
+                element={
+                  <RedirectIfAuthenticated>
+                    <Auth />
+                  </RedirectIfAuthenticated>
+                }
+              />
+              <Route
+                path="/home"
+                element={
+                  <RequireAuth>
+                    <Home />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/submissions"
+                element={
+                  <RequireAuth>
+                    <Submissions />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/tracking"
+                element={
+                  <RequireAuth>
+                    <Tracking />
+                  </RequireAuth>
+                }
+              />
+              {/* Responder/Admin console */}
+              <Route path="/responder/login" element={<ResponderLoginRoute />} />
+              <Route
+                path="/responder/dashboard"
+                element={
+                  <RequireResponderAuth>
+                    <ResponderDashboard />
+                  </RequireResponderAuth>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </ToastProvider>
+      </IncidentProvider>
     </AuthProvider>
   )
 }

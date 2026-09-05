@@ -52,6 +52,83 @@ export function SendIcon({ className }: IconProps) {
   )
 }
 
+export function ShieldIcon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={1.7} className={className}>
+      <path d="M12 2.75 4.5 5.5v6c0 4.5 3.1 8.6 7.5 9.75 4.4-1.15 7.5-5.25 7.5-9.75v-6z" />
+    </svg>
+  )
+}
+
+export function ShieldAlertIcon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={1.7} className={className}>
+      <path d="M12 2.75 4.5 5.5v6c0 4.5 3.1 8.6 7.5 9.75 4.4-1.15 7.5-5.25 7.5-9.75v-6z" />
+      <path d="M12 8.5v4.5M12 16.5h.01" />
+    </svg>
+  )
+}
+
+export function ArrowLeftIcon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={1.9} className={className}>
+      <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
+  )
+}
+
+export function AlertTriangleIcon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={1.7} className={className}>
+      <path d="M12 4 21 20H3z" />
+      <path d="M12 10v4M12 17h.01" />
+    </svg>
+  )
+}
+
+export function CheckIcon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={2} className={className}>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  )
+}
+
+export function CheckCircle2Icon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={1.7} className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8.5 12 2.5 2.5 4.5-5" />
+    </svg>
+  )
+}
+
+export function ChevronRightIcon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={2} className={className}>
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  )
+}
+
+export function MapPinIcon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={1.7} className={className}>
+      <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  )
+}
+
+export function ClockIcon({ className }: IconProps) {
+  return (
+    <svg {...base} strokeWidth={1.7} className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
+
 export function ReportedIcon({ className }: IconProps) {
   return (
     <svg {...base} strokeWidth={1.7} className={className}>
