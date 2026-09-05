@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "dev:responder": "vite --config vite.responder.config.ts",
-    "build:responder": "vite build --config vite.responder.config.ts"
+    "build:responder": "vite build --config vite.responder.config.ts && cp dist-responder/index-responder.html dist-responder/index.html"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",
@@ -25,6 +25,7 @@
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/sockjs-client": "^1.5.4",
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^10.6.0",
     "eslint-plugin-react-hooks": "^7.1.1",

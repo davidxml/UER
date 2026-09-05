@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Client, IMessage } from '@stomp/stompjs'
+import { Client, type IMessage } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { readResponderSession } from '../responder/responderAuth'
 import type { Incident } from '../shared/types'
 
 // The backend registers /ws with SockJS, so the client must talk SockJS too —
 // a raw WebSocket upgrade to /ws is rejected (the endpoint only negotiates the
-// SockJS transports). In dev the /ws proxy forwards to :8080; in prod the app
-// hits the same origin the bundle was served from.
-const WS_URL = import.meta.env.DEV ? '/ws' : `${window.location.origin}/ws`
+// SockJS transports). In dev the /ws proxy forwards to :8080. In prod the
+// SockJS URL points at the deployed backend (VITE_API_URL origin), not the
+// Vercel origin — the frontend host has no /ws of its own.
+const API_ORIGIN = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
+const WS_URL = import.meta.env.DEV ? '/ws' : `${API_ORIGIN}/ws`
 
 /**
  * Connects to the Spring Boot STOMP broker over SockJS and exposes:
