@@ -1,0 +1,31 @@
+# Render blueprint for the UER Spring Boot backend.
+#
+# Deploy: connect the GitHub repo, and Render reads this file to create the
+# Web Service automatically. Secrets are NOT stored here — the `sync: false`
+# env vars are fill-in placeholders you set in the Render dashboard (or via
+# the CLI with --from-schema).
+#
+# Local dev is unaffected by this file: with no CORS_ORIGINS/PORT set the
+# backend falls back to localhost:5173 and port 8080 (see application.properties).
+services:
+  - type: web
+    name: uer-backend
+    plan: free
+    rootDir: backend
+    healthCheckPath: /api/v1/incidents
+    buildCommand: "./mvnw -q package -DskipTests"
+    startCommand: "java -jar target/uer-0.0.1-SNAPSHOT.jar"
+    envVars:
+      # Supabase Postgres password (kept secret — set in dashboards)
+      - key: DB_PASSWORD
+        sync: false
+      # JWT signing secret (32+ chars — values already used locally)
+      - key: JWT_SECRET
+        sync: false
+      # Shared responder PIN for the demo (default "1234" if unset)
+      - key: RESPONDER_PIN
+        sync: false
+      # Allowed browser origins, comma-separated:
+      #   e.g. https://uer-reporters.vercel.app,https://uer-responders.vercel.app
+      - key: CORS_ORIGINS
+        sync: false

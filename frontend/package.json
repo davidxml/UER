@@ -7,13 +7,17 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:responder": "vite --config vite.responder.config.ts",
+    "build:responder": "vite build --config vite.responder.config.ts && cp dist-responder/index-responder.html dist-responder/index.html"
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.3.0",
     "@supabase/supabase-js": "^2.110.7",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^7.18.2",
+    "sockjs-client": "^1.6.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -21,6 +25,7 @@
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/sockjs-client": "^1.5.4",
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^10.6.0",
     "eslint-plugin-react-hooks": "^7.1.1",
