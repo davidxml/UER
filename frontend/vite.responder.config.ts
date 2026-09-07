@@ -11,6 +11,9 @@ import tailwindcss from '@tailwindcss/vite'
 // rules rewrite the root and the responder SPA routes to index-responder.html
 // so the responder console is served at http://localhost:5174/ during dev.
 export default defineConfig({
+  define: {
+    global: 'globalThis',
+  },
   plugins: [
     react(),
     tailwindcss(),
