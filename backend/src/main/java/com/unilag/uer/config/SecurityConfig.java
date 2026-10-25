@@ -1,37 +1,50 @@
 package com.unilag.uer.config;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.unilag.uer.auth.JwtAuthFilter;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 /**
- * Security configuration:
+ * Stateless, JWT-based security.
  *
  * <ul>
- *   <li>CSRF disabled (stateless JSON API, JWT-based).</li>
- *   <li>Login and incident creation/list/detail are open so reporters can
- *       file and track incidents without an account (capstone).</li>
- *   <li>Status/severity mutations require a valid responder JWT (the
- *       RESPONDER role). This is what stops a script or a reporter from
- *       changing incident state — the real guard against abuse.</li>
+ *   <li>Auth endpoints are public; everything else needs a token.</li>
+ *   <li>Students (REPORTER) may create incidents and read their own.</li>
+ *   <li>Only responders/admins may read the incident feed or mutate state.</li>
+ *   <li>Account provisioning is ADMIN-only.</li>
  * </ul>
- *
- * In v2, reporter identity (matric/OTP) gets enforced here too, and the
- * shared PIN is replaced by per-department credentials.
  */
 @Configuration
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final int bcryptStrength;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(
+            JwtAuthFilter jwtAuthFilter,
+            @Value("${uer.security.bcrypt-strength:12}") int bcryptStrength) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.bcryptStrength = bcryptStrength;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(bcryptStrength);
     }
 
     @Bean
@@ -39,24 +52,41 @@ public class SecurityConfig {
         http
             .cors(cors -> {})
             .csrf(csrf -> csrf.disable())
-            // Stateless: every request is authenticated by the JWT filter.
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((request, response, authException) ->
+                            writeError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                                    "Authentication required"))
+                    .accessDeniedHandler((request, response, accessDeniedException) ->
+                            writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                                    "You do not have access to this resource")))
             .authorizeHttpRequests(auth -> auth
-                // Responder login is public
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/error").permitAll()
+                // Unauthenticated liveness probe for the hosting platform.
+                .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
+                // Public auth endpoints and the WebSocket handshake (STOMP CONNECT
+                // performs its own token check).
                 .requestMatchers("/api/v1/auth/**").permitAll()
-                // Reporters can create and read incidents publicly (capstone)
-                .requestMatchers(HttpMethod.POST, "/api/v1/incidents").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/incidents/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/incidents").permitAll()
-                // Only responders may mutate status/severity
-                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidents/**").hasAuthority("RESPONDER")
-                // WebSocket handshake must stay open so clients can connect
                 .requestMatchers("/ws/**").permitAll()
-                .anyRequest().permitAll()
+                // Account administration.
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                // Students report; responders and admins consume.
+                .requestMatchers(HttpMethod.POST, "/api/v1/incidents").hasRole("REPORTER")
+                .requestMatchers(HttpMethod.GET, "/api/v1/incidents/mine").hasRole("REPORTER")
+                .requestMatchers(HttpMethod.GET, "/api/v1/incidents/**").hasAnyRole("RESPONDER", "ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/incidents/**").hasAnyRole("RESPONDER", "ADMIN")
+                .anyRequest().authenticated()
             )
-            // Run our JWT filter before the standard auth filter.
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private static void writeError(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write("{\"message\":\"" + message + "\"}");
     }
 }
