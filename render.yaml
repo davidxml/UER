@@ -14,7 +14,7 @@ services:
     plan: free
     rootDir: backend
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /api/v1/incidents
+    healthCheckPath: /api/v1/health
     envVars:
       # Fit the JVM heap inside the free instance's 512MB RAM.
       - key: JAVA_OPTS
@@ -25,8 +25,11 @@ services:
       # JWT signing secret (32+ chars — values already used locally)
       - key: JWT_SECRET
         sync: false
-      # Shared responder PIN for the demo (default "1234" if unset)
-      - key: RESPONDER_PIN
+      # First admin account, created once on boot (password 12+ characters).
+      # Responders are created by this admin via /api/v1/admin/responders.
+      - key: ADMIN_LOGIN
+        sync: false
+      - key: ADMIN_PASSWORD
         sync: false
       # Allowed browser origins, comma-separated:
       #   e.g. https://uer-reporters.vercel.app,https://uer-responders.vercel.app
