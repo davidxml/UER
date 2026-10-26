@@ -100,3 +100,5 @@ public class User {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 }
+/* These read satsisfactory at this stage. what it does is 
+ it defines what the user input should look like*/
