@@ -5,6 +5,7 @@ import {
   ClockIcon,
   MapPinIcon,
 } from '../components/icons'
+import { useAuth } from '../context/AuthContext'
 import { useIncidents } from '../context/IncidentContext'
 import type { IncidentStatus } from '../shared/types'
 
@@ -17,6 +18,7 @@ const STATUS_STYLES: Record<IncidentStatus, string> = {
 export default function Submissions() {
   const navigate = useNavigate()
   const { incidents, viewIncident } = useIncidents()
+  const { logout, user } = useAuth()
 
   return (
     <main className="flex min-h-dvh flex-col bg-surface-white">
@@ -29,8 +31,22 @@ export default function Submissions() {
         >
           <ArrowLeftIcon className="h-6 w-6" />
         </button>
-        <h1 className="text-lg font-bold text-unilag-maroon">My Submissions</h1>
+        <h1 className="flex-1 text-lg font-bold text-unilag-maroon">My Submissions</h1>
+        <button
+          type="button"
+          onClick={() => {
+            void logout().finally(() => navigate('/auth', { replace: true }))
+          }}
+          className="rounded-lg px-3 py-2 text-sm font-semibold text-unilag-maroon"
+        >
+          Sign out
+        </button>
       </header>
+      {user && (
+        <div className="border-b border-gray-100 px-4 py-2 text-xs text-ink-muted">
+          Signed in as <span className="font-semibold text-ink-main">{user.displayName}</span> ({user.loginId})
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4">
         {incidents.length === 0 ? (

@@ -1,26 +1,39 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth } from './context/AuthContext'
+import { IncidentProvider } from './context/IncidentContext'
 import Splash from './pages/Splash'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
 import Submissions from './pages/Submissions'
 import Tracking from './pages/Tracking'
 
-/** Gates the reporter screens behind an authenticated session (incl. guest). */
+/** Gates the reporter screens behind an authenticated reporter session. */
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { isHydrated, isAuthenticated } = useAuth()
+  const { isHydrated, isAuthenticated, user } = useAuth()
   if (!isHydrated) return null
   if (!isAuthenticated) return <Navigate to="/auth" replace />
+  if (user && user.role !== 'REPORTER') return <Navigate to="/auth" replace />
   return children
 }
 
 /** Keeps an already-authenticated user off the login form. */
 function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
-  const { isHydrated, isAuthenticated } = useAuth()
+  const { isHydrated, isAuthenticated, user } = useAuth()
   if (!isHydrated) return null
-  if (isAuthenticated) return <Navigate to="/home" replace />
+  if (isAuthenticated && user?.role === 'REPORTER') return <Navigate to="/home" replace />
   return children
+}
+
+/** Mounts the incident feed only for logged-in reporters. */
+function ReporterShell() {
+  return (
+    <RequireAuth>
+      <IncidentProvider scope="reporter">
+        <Outlet />
+      </IncidentProvider>
+    </RequireAuth>
+  )
 }
 
 /**
@@ -40,30 +53,11 @@ export default function ReporterApp() {
           </RedirectIfAuthenticated>
         }
       />
-      <Route
-        path="/home"
-        element={
-          <RequireAuth>
-            <Home />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/submissions"
-        element={
-          <RequireAuth>
-            <Submissions />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/tracking"
-        element={
-          <RequireAuth>
-            <Tracking />
-          </RequireAuth>
-        }
-      />
+      <Route element={<ReporterShell />}>
+        <Route path="/home" element={<Home />} />
+        <Route path="/submissions" element={<Submissions />} />
+        <Route path="/tracking" element={<Tracking />} />
+      </Route>
       {/* No /responder/* routes here — that's a separate deployment. */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

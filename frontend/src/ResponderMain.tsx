@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { IncidentProvider } from './context/IncidentContext'
+import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import ResponderApp from './ResponderApp'
 import './index.css'
@@ -10,12 +10,12 @@ import './index.css'
 // separate entry point so reporters never receive (or can reach) this UI.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <IncidentProvider>
+    <AuthProvider>
       <ToastProvider>
         <BrowserRouter>
           <ResponderApp />
         </BrowserRouter>
       </ToastProvider>
-    </IncidentProvider>
+    </AuthProvider>
   </StrictMode>,
 )

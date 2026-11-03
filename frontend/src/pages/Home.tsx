@@ -7,6 +7,7 @@ import {
   ShieldIcon,
   SirenIcon,
 } from '../components/icons'
+import { useAuth } from '../context/AuthContext'
 import { useIncidents } from '../context/IncidentContext'
 import { useToast } from '../context/ToastContext'
 import { api } from '../lib/api'
@@ -30,6 +31,7 @@ export default function Home() {
   const navigate = useNavigate()
   const { addIncident } = useIncidents()
   const { showToast } = useToast()
+  const { logout } = useAuth()
 
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -162,6 +164,15 @@ export default function Home() {
           className="flex h-11 w-11 items-center justify-center rounded-full"
         >
           <MenuIcon className="h-6 w-6 text-unilag-maroon" />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            void logout().finally(() => navigate('/auth', { replace: true }))
+          }}
+          className="rounded-lg px-3 py-2 text-sm font-semibold text-unilag-maroon"
+        >
+          Sign out
         </button>
 
         <button
