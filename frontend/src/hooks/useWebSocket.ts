@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Client, type IMessage } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
-import { readResponderSession } from '../responder/responderAuth'
+import { getFreshAccessToken } from '../lib/api'
 import type { Incident } from '../shared/types'
 
 // The backend registers /ws with SockJS, so the client must talk SockJS too —
@@ -19,12 +19,9 @@ const WS_URL = import.meta.env.DEV ? '/ws' : `${API_ORIGIN}/ws`
  * - `send(destination, body)` — publishes a message to an /app/* destination
  *
  * Every incident broadcast on `/topic/incidents` is parsed and passed to
- * `onIncidentUpdate`. The caller (IncidentContext) decides how to merge it
- * into the existing array.
- *
- * When a responder session (with a JWT) is present, the token is attached in
- * the STOMP CONNECT frame so the backend's StompAuthConfig authenticates the
- * session. Reporters connect anonymously and still receive broadcasts.
+ * `onIncidentUpdate`. Responders are authenticated on CONNECT; the token is
+ * refreshed before each connect/reconnect so a long-lived dashboard never
+ * uses an expired access token.
  */
 export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
   const [connected, setConnected] = useState(false)
@@ -37,14 +34,17 @@ export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
   }, [onIncidentUpdate])
 
   useEffect(() => {
-    // Read once at mount: the responder app mounts the dashboard AFTER login,
-    // so the stored JWT is already available here. Reporters have no session.
-    const session = readResponderSession()
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
-      connectHeaders: session
-        ? { Authorization: `Bearer ${session.token}` }
-        : {},
+      connectHeaders: {},
+      beforeConnect: async () => {
+        const token = await getFreshAccessToken()
+        if (!token) {
+          client.deactivate()
+          return
+        }
+        client.connectHeaders = { Authorization: `Bearer ${token}` }
+      },
 
       onConnect: () => {
         setConnected(true)
@@ -76,6 +76,7 @@ export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
     return () => {
       client.deactivate()
       clientRef.current = null
+      setConnected(false)
     }
   }, [])
 
