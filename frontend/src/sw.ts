@@ -16,6 +16,15 @@ declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: readonly { url: string; revision: string | null }[]
 }
 
+// Never let the service worker intercept API, auth or WebSocket requests
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url)
+
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws/')) {
+    return // Let the browser go straight to Vite's proxy -> backend
+  }
+})
+
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 

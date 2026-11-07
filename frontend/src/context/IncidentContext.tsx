@@ -8,9 +8,17 @@ import {
   useState,
 } from 'react'
 import type { ReactNode } from 'react'
+import { useAuth } from './AuthContext'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { api } from '../lib/api'
 import type { Incident, IncidentStatus } from '../shared/types'
+
+type IncidentScope = 'reporter' | 'responder'
+
+type IncidentProviderProps = {
+  children: ReactNode
+  scope?: IncidentScope
+}
 
 type IncidentContextValue = {
   incidents: Incident[]
@@ -24,22 +32,31 @@ type IncidentContextValue = {
 
 const IncidentContext = createContext<IncidentContextValue | null>(null)
 
-export function IncidentProvider({ children }: { children: ReactNode }) {
+export function IncidentProvider({ children, scope = 'responder' }: IncidentProviderProps) {
+  const { user } = useAuth()
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [activeIncidentId, setActiveIncidentId] = useState<string | null>(null)
   const fetchedRef = useRef(false)
+  const endpoint = scope === 'reporter' ? '/api/v1/incidents/mine' : '/api/v1/incidents'
 
-  // Hydrate from the backend on first mount. The backend is the source of
-  // truth — localStorage is only used as a fast cache for the initial render.
+  // Hydrate from the backend on first mount for this scope.
+  useEffect(() => {
+    fetchedRef.current = false
+    setIncidents([])
+    setActiveIncidentId(null)
+  }, [scope])
+
   useEffect(() => {
     if (fetchedRef.current) return
     fetchedRef.current = true
-    api.get<Incident[]>('/api/v1/incidents')
+    api
+      .get<Incident[]>(endpoint)
       .then(setIncidents)
       .catch(() => {
-        // Backend unreachable — incidents stay empty until WS or manual refresh.
+        // Backend unreachable or session not ready — incidents stay empty until
+        // refresh/WS or manual retry.
       })
-  }, [])
+  }, [endpoint, user?.id])
 
   // WebSocket upsert: when the server broadcasts an incident on /topic/incidents,
   // either replace it in the array (status/severity changed) or prepend it
@@ -56,17 +73,18 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const { connected: wsConnected } = useWebSocket(handleWsUpdate)
+  const ws = scope === 'responder' ? useWebSocket(handleWsUpdate) : null
+  const wsConnected = ws?.connected ?? false
 
   /** Re-fetches the full incident list from the backend. */
   const refreshIncidents = useCallback(async () => {
     try {
-      const data = await api.get<Incident[]>('/api/v1/incidents')
+      const data = await api.get<Incident[]>(endpoint)
       setIncidents(data)
     } catch {
-      // Silently fail — WebSocket will keep pushing updates.
+      // Silently fail — WebSocket will keep pushing updates if available.
     }
-  }, [])
+  }, [endpoint])
 
   /** Inserts an incident returned by the backend POST into local state. */
   const addIncident = useCallback((incident: Incident) => {

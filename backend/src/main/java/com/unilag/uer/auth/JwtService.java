@@ -8,15 +8,18 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.unilag.uer.user.User;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
 /**
- * Creates and validates signed JWTs for responder sessions. The signing key
- * is read from the {@code JWT_SECRET} environment variable (32+ chars for
- * HS256) so it never lives in source control. In v2 this should move to a
- * secrets manager.
+ * Issues and validates short-lived (5 min) access tokens.
+ *
+ * <p>Claims: {@code sub} = user id (stable), {@code role}, {@code dept} for
+ * responders, and {@code ver} = the user's token version. The version lets the
+ * API reject tokens issued before a password reset or account disable.</p>
  */
 @Service
 public class JwtService {
@@ -26,7 +29,7 @@ public class JwtService {
 
     public JwtService(
             @Value("${uer.jwt.secret}") String secret,
-            @Value("${uer.jwt.ttl-ms:86400000}") long ttlMillis) {
+            @Value("${uer.jwt.ttl-ms:300000}") long ttlMillis) {
         byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (secretBytes.length < 32) {
             throw new IllegalStateException(
@@ -36,30 +39,35 @@ public class JwtService {
         this.ttlMillis = ttlMillis;
     }
 
-    /** Builds a signed token carrying the department as the principal name. */
-    public String generateToken(String department) {
+    public String generateAccessToken(User user) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + ttlMillis);
-        return Jwts.builder()
-                .subject(department)
-                .claim("role", "RESPONDER")
+        var builder = Jwts.builder()
+                .subject(user.getId())
+                .claim("role", user.getRole().name())
+                .claim("ver", user.getTokenVersion())
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(key)
-                .compact();
+                .expiration(new Date(now.getTime() + ttlMillis));
+
+        if (user.getDepartment() != null) {
+            builder.claim("dept", user.getDepartment());
+        }
+        return builder.signWith(key).compact();
     }
 
-    /** @return the subject (department) if the token is valid, else null. */
-    public String parseSubject(String token) {
+    /** @return verified claims, or {@code null} for tampered/expired/malformed tokens. */
+    public Claims parseClaims(String token) {
         try {
-            Claims claims = Jwts.parser()
+            return Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            return claims.getSubject();
         } catch (Exception e) {
             return null;
         }
+    }
+
+    public long getTtlMillis() {
+        return ttlMillis;
     }
 }

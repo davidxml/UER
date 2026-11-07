@@ -15,4 +15,7 @@ public interface IncidentRepository extends JpaRepository<Incident, String> {
      * substring within the comma-joined {@code tagged} column.
      */
     List<Incident> findByTaggedContaining(String department);
+
+    /** Incidents filed by one reporter. */
+    List<Incident> findByReporterId(String reporterId);
 }

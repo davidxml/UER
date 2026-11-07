@@ -1,43 +1,39 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { useIncidents } from '../context/IncidentContext'
-import {
-  clearResponderSession,
-  readResponderDepartment,
-} from './responderAuth'
 import DispatchPanel from './DispatchPanel'
 import IncidentQueue from './IncidentQueue'
 import type { QueueFilter } from './IncidentQueue'
 import Sidebar from './Sidebar'
 
 /**
- * Composes the responder console. The active department comes from the
- * persisted responder session (guarded at the route layer), and incident data
- * flows from the shared, localStorage-synced IncidentContext — so status
- * changes here appear on the Reporter's Tracking screen live.
+ * Composes the responder console. The active unit comes from the signed-in
+ * responder account; incident data is provided by the scope="responder"
+ * IncidentProvider and updates over WebSocket.
  */
 export default function ResponderDashboard() {
   const navigate = useNavigate()
   const { incidents } = useIncidents()
-  const department = readResponderDepartment()
+  const { logout, user } = useAuth()
+  const department = user?.department ?? null
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<QueueFilter>('All')
 
-  // The route guard guarantees a session; this is purely a defensive fallback.
   if (!department) return null
 
-  const handleSwitchUnit = () => {
-    clearResponderSession()
-    navigate('/responder/login', { replace: true })
+  const handleSignOut = () => {
+    void logout().finally(() => navigate('/login', { replace: true }))
   }
 
   const selectedIncident = incidents.find((i) => i.id === selectedId)
+  const dept = department as import('../shared/constants').Department
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-surface-gray font-sans">
-      <Sidebar department={department} onSwitchUnit={handleSwitchUnit} />
+      <Sidebar department={dept} onSignOut={handleSignOut} />
       <IncidentQueue
-        department={department}
+        department={dept}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         selectedId={selectedId}

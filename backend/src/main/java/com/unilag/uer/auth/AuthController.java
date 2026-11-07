@@ -1,50 +1,60 @@
 package com.unilag.uer.auth;
 
-import java.util.Map;
-import java.util.Set;
-
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.unilag.uer.auth.dto.AuthResponse;
+import com.unilag.uer.auth.dto.LoginRequest;
+import com.unilag.uer.auth.dto.RefreshRequest;
+import com.unilag.uer.auth.dto.StudentSignupRequest;
+
+import jakarta.validation.Valid;
+
 /**
- * Responder authentication. Verifies the department + PIN against server-side
- * configuration and, on success, issues a signed JWT that the client must
- * send as {@code Authorization: Bearer <token>} on all responder operations.
+ * Public authentication endpoints:
  *
- * The PIN is a shared stub for the capstone ("1234"). In v2 this becomes a
- * per-department credential or an OTP/SSO flow — the token mechanics stay the
- * same, only the credential check changes.
+ * <pre>
+ * POST /api/v1/auth/register → student self-registration (always REPORTER)
+ * POST /api/v1/auth/login    → students, responders, admins
+ * POST /api/v1/auth/refresh  → rotate a refresh token for a new access token
+ * POST /api/v1/auth/logout   → revoke the presented refresh token family
+ * </pre>
+ *
+ * Responder and admin accounts are created by an admin, never here.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    private final JwtService jwtService;
-    private final String responderPin;
-    private static final Set<String> VALID_DEPARTMENTS =
-            Set.of("Alpha Base", "Medical Center", "Fire Station", "General Dispatch");
+    private final AuthService authService;
 
-    public AuthController(
-            JwtService jwtService,
-            @Value("${uer.responder-pin:1234}") String responderPin) {
-        this.jwtService = jwtService;
-        this.responderPin = responderPin;
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
-    /** Body for the responder login request. */
-    public record LoginRequest(String department, String pin) {}
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AuthResponse register(@Valid @RequestBody StudentSignupRequest request) {
+        return authService.registerStudent(request);
+    }
 
-    @PostMapping("/responder/login")
-    public Map<String, String> responderLogin(@RequestBody LoginRequest login) {
-        if (login.department() == null || !VALID_DEPARTMENTS.contains(login.department())) {
-            throw new IllegalArgumentException("Invalid department: " + login.department());
-        }
-        if (login.pin() == null || !login.pin().equals(responderPin)) {
-            throw new IllegalArgumentException("Invalid PIN");
-        }
-        return Map.of("token", jwtService.generateToken(login.department()));
+    @PostMapping("/login")
+    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return authService.refresh(request.refreshToken());
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@Valid @RequestBody RefreshRequest request) {
+        authService.logout(request.refreshToken());
     }
 }

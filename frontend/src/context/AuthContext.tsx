@@ -1,120 +1,136 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import type { ReactNode } from 'react'
+import { api } from '../lib/api'
+import {
+  clearSession,
+  readSession,
+  saveSession,
+  subscribeSession,
+} from '../lib/authStorage'
+import type { AuthSession, AuthUser, Role, StudentSignupPayload } from '../shared/auth'
 
-const STORAGE_KEY = 'uer_auth'
-
-/**
- * Shape persisted to localStorage. Deliberately the matric number only —
- * the PIN is never written to storage, and there is nothing else the
- * prototype needs in order to restore a session.
- */
-type StoredAuth = {
-  matricNumber: string
-}
-
-type AuthState = {
+type AuthContextValue = {
+  session: AuthSession | null
+  user: AuthUser | null
   isAuthenticated: boolean
-  isGuest: boolean
-  matricNumber: string | null
-}
-
-type AuthContextValue = AuthState & {
+  /** True once the session has been read from storage. */
   isHydrated: boolean
-  login: (matricNumber: string) => void
-  loginAsGuest: () => void
-  logout: () => void
-}
-
-const SIGNED_OUT: AuthState = {
-  isAuthenticated: false,
-  isGuest: false,
-  matricNumber: null,
-}
-
-/**
- * Restores the stored session. Read synchronously (see AuthProvider) so the
- * very first render already reflects storage and a guarded route can never
- * observe a false "signed out".
- */
-function readStoredAuth(): AuthState {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return SIGNED_OUT
-
-    const parsed: unknown = JSON.parse(raw)
-    const matricNumber = (parsed as StoredAuth | null)?.matricNumber
-
-    // Treat anything unexpected as signed out rather than trusting it: the
-    // value is user-writable via devtools.
-    if (typeof matricNumber !== 'string' || matricNumber.trim() === '') {
-      return SIGNED_OUT
-    }
-
-    return { isAuthenticated: true, isGuest: false, matricNumber }
-  } catch {
-    // Storage unavailable (Safari private mode, disabled by policy) or the
-    // stored value is not valid JSON.
-    return SIGNED_OUT
-  }
+  /** Log in with a login id (matric or email) and password. */
+  login: (
+    loginId: string,
+    password: string,
+    allowedRoles?: Role[],
+  ) => Promise<void>
+  /** Create a student account (always REPORTER). */
+  signup: (payload: StudentSignupPayload) => Promise<void>
+  /** Revoke the refresh token on the server and clear local state. */
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Lazy initialiser: localStorage is synchronous, so hydration completes
-  // before the first paint. This removes the redirect race by construction
-  // rather than gating the first render behind a loading flag.
-  const [state, setState] = useState<AuthState>(readStoredAuth)
+  const [session, setSession] = useState<AuthSession | null>(() => readSession())
+  const isHydrated = true
 
-  const login = useCallback((matricNumber: string) => {
-    const normalised = matricNumber.trim().toUpperCase()
-    setState({ isAuthenticated: true, isGuest: false, matricNumber: normalised })
-
-    try {
-      const payload: StoredAuth = { matricNumber: normalised }
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-    } catch {
-      // Session stays valid for this tab even if it cannot be persisted.
-    }
+  // Keep in sync with localStorage: refresh rotations from api.ts, sign-out in
+  // another tab, or a cleared session all update this context.
+  useEffect(() => {
+    return subscribeSession(() => {
+      setSession(readSession())
+    })
   }, [])
 
-  // Guest bypass: reach the reporter flow without signing in. Kept in memory
-  // only — a guest has no matric number to persist, and a refreshed tab that
-  // had no real session should return to the auth screen.
-  const loginAsGuest = useCallback(() => {
-    setState({ isAuthenticated: true, isGuest: true, matricNumber: null })
+  const login = useCallback(
+    async (loginId: string, password: string, allowedRoles?: Role[]) => {
+      const id = loginId.trim()
+      if (!id || !password) throw new Error('Login ID and password are required')
+
+      const res = await api.post<AuthSession>(
+        '/api/v1/auth/login',
+        { loginId: id, password },
+        { skipAuth: true },
+      )
+
+      if (allowedRoles && allowedRoles.length > 0) {
+        if (!allowedRoles.includes(res.user.role)) {
+          // Don't leave a session behind if the app rejects this role.
+          try {
+            await api.post(
+              '/api/v1/auth/logout',
+              { refreshToken: res.refreshToken },
+              { skipAuth: true },
+            )
+          } catch {
+            // Best effort only.
+          }
+          throw new Error('This account cannot access this application')
+        }
+      }
+
+      saveSession(res)
+      setSession(res)
+    },
+    [],
+  )
+
+  const signup = useCallback(async (payload: StudentSignupPayload) => {
+    const res = await api.post<AuthSession>(
+      '/api/v1/auth/register',
+      {
+        displayName: payload.displayName.trim(),
+        gender: payload.gender,
+        matricNo: payload.matricNo.trim(),
+        academicDepartment: payload.academicDepartment.trim(),
+        academicLevel: payload.academicLevel,
+        password: payload.password,
+      },
+      { skipAuth: true },
+    )
+    saveSession(res)
+    setSession(res)
   }, [])
 
-  const logout = useCallback(() => {
-    setState(SIGNED_OUT)
-
-    try {
-      window.localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // Nothing to recover from; in-memory state is already cleared.
+  const logout = useCallback(async () => {
+    const current = readSession()
+    if (current?.refreshToken) {
+      try {
+        await api.post(
+          '/api/v1/auth/logout',
+          { refreshToken: current.refreshToken },
+          { skipAuth: true },
+        )
+      } catch {
+        // Server revoke failed (network/offline) — clear locally anyway.
+      }
     }
+    clearSession()
+    setSession(null)
   }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      ...state,
-      // True from the first render because hydration is synchronous. Guards
-      // still check it, so the precondition stays explicit and they remain
-      // correct if restoring a session ever becomes asynchronous.
-      isHydrated: true,
+      session,
+      user: session?.user ?? null,
+      isAuthenticated: Boolean(session),
+      isHydrated,
       login,
-      loginAsGuest,
+      signup,
       logout,
     }),
-    [state, login, loginAsGuest, logout],
+    [session, isHydrated, login, signup, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-// Colocated with its provider on purpose: a context, its provider and its
-// consumer hook are one unit, and splitting them only to satisfy an HMR
-// heuristic would cost more in readability than it saves in refresh speed.
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext)

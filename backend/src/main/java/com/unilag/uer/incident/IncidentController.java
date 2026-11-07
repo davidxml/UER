@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,15 +17,15 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
- * REST controller for the UER incident lifecycle. All endpoints are open
- * (permitAll) — no auth layer is wired yet.
+ * REST controller for the UER incident lifecycle.
  *
  * <pre>
- * POST   /api/v1/incidents              → create  (201)
- * GET    /api/v1/incidents?department=X → list, optionally filtered
- * GET    /api/v1/incidents/{id}         → detail  (404 if missing)
- * PATCH  /api/v1/incidents/{id}/status  → advance lifecycle
- * PATCH  /api/v1/incidents/{id}/severity → reassign severity
+ * POST   /api/v1/incidents                → create (REPORTER, 201)
+ * GET    /api/v1/incidents/mine           → own reports (REPORTER)
+ * GET    /api/v1/incidents?department=X   → feed (RESPONDER/ADMIN)
+ * GET    /api/v1/incidents/{id}           → detail (RESPONDER/ADMIN, own unit)
+ * PATCH  /api/v1/incidents/{id}/status    → advance lifecycle (RESPONDER/ADMIN)
+ * PATCH  /api/v1/incidents/{id}/severity  → reassign severity (RESPONDER/ADMIN)
  * </pre>
  */
 @RestController
@@ -39,8 +40,10 @@ public class IncidentController {
 
     /** Persists a new incident. Returns 201 with the saved resource URI. */
     @PostMapping
-    public ResponseEntity<Incident> createIncident(@RequestBody IncidentRequest request) {
-        Incident saved = service.createIncident(request);
+    public ResponseEntity<Incident> createIncident(
+            @RequestBody IncidentRequest request,
+            Authentication authentication) {
+        Incident saved = service.createIncident(request, authentication.getName());
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -49,35 +52,60 @@ public class IncidentController {
         return ResponseEntity.created(location).body(saved);
     }
 
+    /** Reports created by the signed-in student. */
+    @GetMapping("/mine")
+    public List<Incident> getMyIncidents(Authentication authentication) {
+        return service.getIncidentsForReporter(authentication.getName());
+    }
+
     /**
-     * Lists all incidents. Pass {@code ?department=X} to narrow the results
-     * to a specific emergency unit.
+     * Incident feed for responders. A responder is always scoped to their own
+     * unit; an admin may pass {@code ?department=X} or omit it for everything.
      */
     @GetMapping
     public List<Incident> getIncidents(
-            @RequestParam Optional<String> department) {
-        return service.getIncidents(department);
+            @RequestParam Optional<String> department,
+            Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return service.getIncidents(department);
+        }
+        return service.getIncidents(Optional.ofNullable(unit(authentication)));
     }
 
     /** Returns a single incident by its id. */
     @GetMapping("/{id}")
-    public Incident getIncidentById(@PathVariable String id) {
-        return service.getIncidentById(id);
+    public Incident getIncidentById(@PathVariable String id, Authentication authentication) {
+        return service.getIncidentById(id, unitOrNullForAdmin(authentication));
     }
 
     /** Advances an incident's lifecycle status. */
     @PatchMapping("/{id}/status")
     public Incident updateStatus(
             @PathVariable String id,
-            @RequestBody StatusUpdateRequest request) {
-        return service.updateStatus(id, request.status());
+            @RequestBody StatusUpdateRequest request,
+            Authentication authentication) {
+        return service.updateStatus(id, request.status(), unitOrNullForAdmin(authentication));
     }
 
     /** Reassigns an incident's severity level. */
     @PatchMapping("/{id}/severity")
     public Incident updateSeverity(
             @PathVariable String id,
-            @RequestBody SeverityUpdateRequest request) {
-        return service.updateSeverity(id, request.severity());
+            @RequestBody SeverityUpdateRequest request,
+            Authentication authentication) {
+        return service.updateSeverity(id, request.severity(), unitOrNullForAdmin(authentication));
+    }
+
+    private static String unitOrNullForAdmin(Authentication authentication) {
+        return isAdmin(authentication) ? null : unit(authentication);
+    }
+
+    private static String unit(Authentication authentication) {
+        return authentication.getDetails() instanceof String department ? department : null;
+    }
+
+    private static boolean isAdmin(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }
 }

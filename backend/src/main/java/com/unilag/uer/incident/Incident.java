@@ -71,4 +71,8 @@ public class Incident {
     @Column(name = "images", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> images;
+
+    /** Account that filed the report. Null for legacy/anonymous rows. */
+    @Column(name = "reporter_id")
+    private String reporterId;
 }

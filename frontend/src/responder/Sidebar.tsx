@@ -3,14 +3,14 @@ import type { Department } from '../shared/constants'
 
 type SidebarProps = {
   department: Department
-  onSwitchUnit: () => void
+  onSignOut: () => void
 }
 
 /**
- * Nav shell for the responder console. Shows the branding, the active unit
- * currently signed in, and a control to switch/back out of that unit.
+ * Nav shell for the responder console. Shows the branding and the active unit
+ * assigned to the signed-in account; the unit is fixed by the administrator.
  */
-export default function Sidebar({ department, onSwitchUnit }: SidebarProps) {
+export default function Sidebar({ department, onSignOut }: SidebarProps) {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-gray-200 bg-surface-white">
       <div className="flex h-16 items-center gap-3 border-b border-gray-200 px-6">
@@ -31,10 +31,10 @@ export default function Sidebar({ department, onSwitchUnit }: SidebarProps) {
         </p>
         <button
           type="button"
-          onClick={onSwitchUnit}
+          onClick={onSignOut}
           className="mt-3 w-full rounded-lg border border-unilag-maroon py-2 text-sm font-semibold text-unilag-maroon transition-colors hover:bg-unilag-maroon hover:text-surface-white"
         >
-          Switch Unit
+          Sign out
         </button>
       </div>
     </aside>
