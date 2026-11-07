@@ -31,13 +31,10 @@ jobs:
       - name: Make Maven wrapper executable
         run: chmod +x mvnw
 
-      - name: Run unit tests
-        # UerApplicationTests is a full @SpringBootTest context load that requires
-        # external DB/JWT config. Excluded until a CI test profile (e.g. H2/Testcontainers)
-        # is added. The auth unit tests still run.
-        run: ./mvnw -B test -Dtest='!UerApplicationTests'
+      - name: Run tests
+        run: ./mvnw -B test
 
-      - name: Build (skip tests already run)
+      - name: Build
         run: ./mvnw -B package -DskipTests
 
   frontend:
