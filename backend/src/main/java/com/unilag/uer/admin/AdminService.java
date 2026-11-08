@@ -51,6 +51,9 @@ public class AdminService {
             throw new ConflictException("An account already exists for this email");
         }
 
+        String phone = request.phoneNumber() == null ? null : request.phoneNumber().trim();
+        if (phone != null && phone.isBlank()) phone = null;
+
         User responder = User.builder()
                 .id(java.util.UUID.randomUUID().toString())
                 .loginId(email)
@@ -58,6 +61,7 @@ public class AdminService {
                 .passwordHash(encoder.encode(request.password()))
                 .role(Role.RESPONDER)
                 .department(request.unit())
+                .phoneNumber(phone)
                 .verificationStatus(VerificationStatus.UNVERIFIED)
                 .enabled(true)
                 .failedAttempts(0)

@@ -54,6 +54,10 @@ public class User {
     @Column(name = "department")
     private String department;
 
+    /** Official contact number (optional, primarily for responders/staff). */
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "gender")
     private Gender gender;
