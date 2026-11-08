@@ -20,8 +20,11 @@ export default function ResponderLogin() {
     }
     setSubmitting(true)
     try {
-      await login(email.trim(), password, ['RESPONDER'])
-      navigate('/dashboard', { replace: true })
+      await login(email.trim(), password, ['RESPONDER', 'ADMIN'])
+      // AuthContext saves the session; redirect based on role.
+      const sessionRaw = localStorage.getItem('uer_session_v1')
+      const role = sessionRaw ? (JSON.parse(sessionRaw)?.user?.role as string | undefined) : undefined
+      navigate(role === 'ADMIN' ? '/admin/responders' : '/dashboard', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed. Try again.')
     } finally {
