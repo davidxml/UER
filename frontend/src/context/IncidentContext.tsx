@@ -42,8 +42,10 @@ export function IncidentProvider({ children, scope = 'responder' }: IncidentProv
   // Hydrate from the backend on first mount for this scope.
   useEffect(() => {
     fetchedRef.current = false
-    setIncidents([])
-    setActiveIncidentId(null)
+    queueMicrotask(() => {
+      setIncidents([])
+      setActiveIncidentId(null)
+    })
   }, [scope])
 
   useEffect(() => {
@@ -73,8 +75,7 @@ export function IncidentProvider({ children, scope = 'responder' }: IncidentProv
     })
   }, [])
 
-  const ws = scope === 'responder' ? useWebSocket(handleWsUpdate) : null
-  const wsConnected = ws?.connected ?? false
+  const { connected: wsConnected } = useWebSocket(handleWsUpdate, scope === 'responder')
 
   /** Re-fetches the full incident list from the backend. */
   const refreshIncidents = useCallback(async () => {

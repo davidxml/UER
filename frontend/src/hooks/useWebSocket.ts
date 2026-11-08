@@ -22,8 +22,13 @@ const WS_URL = import.meta.env.DEV ? '/ws' : `${API_ORIGIN}/ws`
  * `onIncidentUpdate`. Responders are authenticated on CONNECT; the token is
  * refreshed before each connect/reconnect so a long-lived dashboard never
  * uses an expired access token.
+ *
+ * Pass `enabled=false` to keep the socket inactive (used for reporter scope).
  */
-export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
+export function useWebSocket(
+  onIncidentUpdate: (incident: Incident) => void,
+  enabled = true,
+) {
   const [connected, setConnected] = useState(false)
   const clientRef = useRef<Client | null>(null)
   const callbackRef = useRef(onIncidentUpdate)
@@ -34,6 +39,8 @@ export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
   }, [onIncidentUpdate])
 
   useEffect(() => {
+    if (!enabled) return
+
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
       connectHeaders: {},
@@ -78,7 +85,7 @@ export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
       clientRef.current = null
       setConnected(false)
     }
-  }, [])
+  }, [enabled])
 
   /** Publishes a message to a server-side @MessageMapping destination. */
   const send = useCallback((destination: string, body: object) => {
@@ -88,5 +95,5 @@ export function useWebSocket(onIncidentUpdate: (incident: Incident) => void) {
     })
   }, [])
 
-  return { connected, send }
+  return { connected: enabled ? connected : false, send }
 }

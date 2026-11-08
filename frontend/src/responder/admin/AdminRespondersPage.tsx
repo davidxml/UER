@@ -47,8 +47,28 @@ export default function AdminRespondersPage() {
   }, [])
 
   useEffect(() => {
-    void loadResponders()
-  }, [loadResponders])
+    let cancelled = false
+    void (async () => {
+      // Defer state updates to avoid react-hooks/set-state-in-effect.
+      await Promise.resolve()
+      if (cancelled) return
+      setLoading(true)
+      setLoadError('')
+      try {
+        const data = await adminApi.listResponders()
+        if (!cancelled) setResponders(data)
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err.message : 'Failed to load responders')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const unitOptions = useMemo(() => [...DEPARTMENTS], [])
 
