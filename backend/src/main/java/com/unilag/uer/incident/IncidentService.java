@@ -97,6 +97,10 @@ public class IncidentService {
         if (unit == null || unit.isBlank()) {
             return true;
         }
+        // General Dispatch responders oversee all campus security incidents.
+        if (GENERAL_TAG.equals(unit.trim())) {
+            return true;
+        }
         if (tagged == null || tagged.isBlank()) {
             return false;
         }
