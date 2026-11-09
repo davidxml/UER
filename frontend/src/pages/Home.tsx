@@ -103,7 +103,14 @@ export default function Home() {
       return
     }
 
-    const tagged = selectedDepts.join(', ') || 'General Dispatch'
+    const specificDepts = ['Alpha Base', 'Medical Center', 'Fire Station'] as const
+    const hasAllSpecific = specificDepts.every((d) => selectedDepts.includes(d))
+    const tagged =
+      selectedDepts.length === 0 ||
+      selectedDepts.includes('General Dispatch') ||
+      hasAllSpecific
+        ? 'General Dispatch'
+        : selectedDepts.join(', ')
     const formattedLocation = formatLocation(locationText)
     const now = new Date()
     const time = now.toLocaleTimeString('en-NG', {

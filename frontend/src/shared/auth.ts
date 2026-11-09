@@ -24,6 +24,8 @@ export type AuthUser = {
   role: Role
   /** Responder unit, fixed when the admin creates the account. */
   department: string | null
+  /** Official contact number (optional, primarily for responders/staff). */
+  phoneNumber: string | null
   gender: Gender | null
   academicDepartment: string | null
   academicLevel: number | null

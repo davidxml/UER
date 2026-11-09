@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash       text NOT NULL,
     role                text NOT NULL CHECK (role IN ('REPORTER', 'RESPONDER', 'ADMIN')),
     department          text,
+    phone_number        text,
     gender              text CHECK (gender IN ('MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY')),
     academic_department text,
     academic_level      int,
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_login_id_lower_idx ON users (lower(login_id));
 CREATE INDEX IF NOT EXISTS users_role_idx ON users (role);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number text;
 
 -- Refresh tokens: only the SHA-256 hash is stored. Rotation + family tracking
 -- allows stolen-token detection.

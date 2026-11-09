@@ -29,14 +29,17 @@ export default function IncidentQueue({
 }: IncidentQueueProps) {
   const { incidents } = useIncidents()
 
-  const routedToDepartment = incidents.filter(
-    (incident) =>
-      incident.tagged === 'General Dispatch' ||
-      incident.tagged
-        .split(',')
-        .map((dept) => dept.trim())
-        .includes(department),
-  )
+  const routedToDepartment =
+    department === 'General Dispatch'
+      ? incidents
+      : incidents.filter(
+          (incident) =>
+            incident.tagged === 'General Dispatch' ||
+            incident.tagged
+              .split(',')
+              .map((dept) => dept.trim())
+              .includes(department),
+        )
 
   const visible =
     activeTab === 'All'

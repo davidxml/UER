@@ -17,6 +17,9 @@ public record CreateResponderRequest(
         @NotBlank(message = "Responder unit is required")
         String unit,
 
+        @Size(max = 30, message = "Phone number must be at most 30 characters")
+        String phoneNumber,
+
         @NotBlank(message = "Password is required")
         @Size(min = 12, max = 72, message = "Responder passwords must be 12-72 characters")
         String password) {

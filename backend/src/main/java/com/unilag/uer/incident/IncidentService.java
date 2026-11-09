@@ -19,6 +19,10 @@ public class IncidentService {
 
     private static final Set<String> VALID_STATUSES = Set.of("Reported", "En Route", "Resolved");
     private static final Set<String> VALID_SEVERITIES = Set.of("high", "medium", "low");
+    /** Specific responder departments. Tagging all of these normalizes to General Dispatch. */
+    private static final Set<String> SPECIFIC_DEPARTMENTS = Set.of(
+            "Alpha Base", "Medical Center", "Fire Station");
+    private static final String GENERAL_TAG = "General Dispatch";
 
     private final IncidentRepository repository;
     private final SimpMessagingTemplate messagingTemplate;
@@ -51,7 +55,7 @@ public class IncidentService {
                 .locationText(request.getLocationText().trim())
                 .time(request.getTime())
                 .status("Reported")
-                .tagged(request.getTagged())
+                .tagged(normalizeTagged(request.getTagged()))
                 .severity(request.getSeverity() != null ? request.getSeverity() : "medium")
                 .text(request.getText().trim())
                 .images(request.getImages() != null ? request.getImages() : List.of())
@@ -64,15 +68,63 @@ public class IncidentService {
     }
 
     /**
-     * Returns every incident visible to the caller. When a department is
-     * supplied, the list is narrowed to incidents routed to that unit. Results
+     * Normalizes routing tags:
+     * <ul>
+     *   <li>Blank/null → {@code General Dispatch}</li>
+     *   <li>Contains {@code General Dispatch} → {@code General Dispatch}</li>
+     *   <li>Tags all specific departments (Alpha Base, Medical Center, Fire Station)
+     *       → {@code General Dispatch} (visible to all departments)</li>
+     * </ul>
+     */
+    static String normalizeTagged(String tagged) {
+        if (tagged == null || tagged.isBlank()) {
+            return GENERAL_TAG;
+        }
+        List<String> parts = java.util.Arrays.stream(tagged.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        if (parts.isEmpty() || parts.contains(GENERAL_TAG)) {
+            return GENERAL_TAG;
+        }
+        if (parts.containsAll(SPECIFIC_DEPARTMENTS)) {
+            return GENERAL_TAG;
+        }
+        return String.join(", ", parts);
+    }
+
+    static boolean isVisibleToUnit(String tagged, String unit) {
+        if (unit == null || unit.isBlank()) {
+            return true;
+        }
+        // General Dispatch responders oversee all campus security incidents.
+        if (GENERAL_TAG.equals(unit.trim())) {
+            return true;
+        }
+        if (tagged == null || tagged.isBlank()) {
+            return false;
+        }
+        if (GENERAL_TAG.equals(tagged.trim())) {
+            return true; // General incidents are visible to all departments/units.
+        }
+        return java.util.Arrays.stream(tagged.split(","))
+                .map(String::trim)
+                .anyMatch(unit::equals);
+    }
+
+    /**
+     * Returns every incident visible to the caller. When a department/unit is
+     * supplied, the list includes incidents routed to that unit and
+     * {@code General Dispatch} incidents (visible to all departments). Results
      * are sorted newest first by the {@code time} field.
      */
     public List<Incident> getIncidents(Optional<String> department) {
-        List<Incident> incidents = department
-                .filter(d -> !d.isBlank())
-                .map(repository::findByTaggedContaining)
-                .orElseGet(repository::findAll);
+        String unit = department.filter(d -> !d.isBlank()).orElse(null);
+        List<Incident> incidents = unit == null
+                ? repository.findAll()
+                : repository.findAll().stream()
+                        .filter(i -> isVisibleToUnit(i.getTagged(), unit))
+                        .toList();
 
         return incidents.stream()
                 .sorted(Comparator.comparing(Incident::getTime).reversed())
@@ -142,8 +194,7 @@ public class IncidentService {
         if (unit == null) {
             return;
         }
-        String tagged = incident.getTagged();
-        if (tagged == null || !tagged.contains(unit)) {
+        if (!isVisibleToUnit(incident.getTagged(), unit)) {
             throw new AccessDeniedException("This incident is not assigned to your unit");
         }
     }
